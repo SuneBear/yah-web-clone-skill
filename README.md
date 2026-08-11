@@ -30,20 +30,35 @@ Yah Web Clone 是一套面向创意网站、WebGL、Canvas、Three.js、Shader�
 
 ## 安装
 
-克隆到 Codex Skills 目录，并确保最终目录名为 `yah-web-clone`：
+最简单的方式是把仓库地址直接交给任何支持 Skills 的 Agent：
+
+```text
+请帮我安装这个 Skill：
+https://github.com/SuneBear/yah-web-clone-skill
+
+安装到你的 Skills 目录，保持 Skill 名为 yah-web-clone，并确认 SKILL.md 可以被发现。
+```
+
+Agent 只需要能够访问该仓库，并支持本地 Skill 或 `SKILL.md` 约定；具体安装目录由 Agent 自己的运行环境决定。
+
+也可以手动克隆到对应 Agent 的 Skills 目录：
 
 ```bash
+AGENT_SKILLS_DIR="/absolute/path/to/your-agent/skills"
+
 git clone git@github.com:SuneBear/yah-web-clone-skill.git \
-  "${CODEX_HOME:-$HOME/.codex}/skills/yah-web-clone"
+  "$AGENT_SKILLS_DIR/yah-web-clone"
 ```
 
 更新已有安装：
 
 ```bash
-git -C "${CODEX_HOME:-$HOME/.codex}/skills/yah-web-clone" pull --ff-only
+AGENT_SKILLS_DIR="/absolute/path/to/your-agent/skills"
+
+git -C "$AGENT_SKILLS_DIR/yah-web-clone" pull --ff-only
 ```
 
-安装后在新任务中使用 `$yah-web-clone` 触发 Skill。
+安装后让 Agent 重新加载 Skill 清单或开启新任务，再使用 `$yah-web-clone`，或该 Agent 提供的等效 Skill 调用方式。
 
 ## 快速使用
 
@@ -59,7 +74,7 @@ https://example.com
 直接使用 CLI：
 
 ```bash
-YAH_WEB_CLONE_DIR="${CODEX_HOME:-$HOME/.codex}/skills/yah-web-clone"
+YAH_WEB_CLONE_DIR="/absolute/path/to/your-agent/skills/yah-web-clone"
 
 node "$YAH_WEB_CLONE_DIR/scripts/yah.mjs" init example \
   --url https://example.com \
