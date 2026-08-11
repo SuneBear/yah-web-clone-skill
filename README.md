@@ -26,13 +26,7 @@ Yah Web Clone 是一套面向创意网站、WebGL、Canvas、Three.js、Shader�
 
 ## 公开案例
 
-### Underwater Corals Scene
-
-[![Underwater Corals Scene 桌面端镜像](https://raw.githubusercontent.com/Creative-Web-Refs/underwater-corals-scene-clone/main/docs/media/site-desktop.png)](https://underwater-corals-scene-clone.pages.dev/)
-
-一个完整的 `full` 模式案例：保存原站部署态代码与 5 个 GLB 模型，解构 Three.js TSL、WebGPU/WebGL2、程序化焦散、GPU 海葵模拟、鱼路径变形和浮游粒子，并提供可调效果实验室、三视口忠实度证据与加载完成后的 MP4 录屏。
-
-[GitHub 仓库](https://github.com/Creative-Web-Refs/underwater-corals-scene-clone) · [生产镜像](https://underwater-corals-scene-clone.pages.dev/) · [在线 Lab](https://underwater-corals-scene-clone.pages.dev/__lab/) · [实现分析](https://github.com/Creative-Web-Refs/underwater-corals-scene-clone/blob/main/docs/ANALYSIS.md)
+- [Underwater Corals Scene](https://github.com/Creative-Web-Refs/underwater-corals-scene-clone) — `full`；Three.js TSL、WebGPU/WebGL2、程序化焦散、GPU 模拟、路径变形与粒子系统；[生产镜像](https://underwater-corals-scene-clone.pages.dev/) · [在线 Lab](https://underwater-corals-scene-clone.pages.dev/__lab/) · [实现分析](https://github.com/Creative-Web-Refs/underwater-corals-scene-clone/blob/main/docs/ANALYSIS.md)
 
 ## 安装
 
