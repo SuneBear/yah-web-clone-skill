@@ -67,8 +67,6 @@ git -C "$AGENT_SKILLS_DIR/yah-web-clone" pull --ff-only
 ```text
 使用 $yah-web-clone 的 full 模式严格 1:1 复刻：
 https://example.com
-
-本地忠实度验收通过后再发布。项目文档使用中文；无法达到严格 1:1 时，停止交付并说明缺口和证据。
 ```
 
 直接使用 CLI：
