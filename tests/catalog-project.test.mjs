@@ -78,6 +78,44 @@ try {
     "underwater", "organic-motion", "coral", "marine-life",
   ]);
 
+  state.mode = "collection";
+  state.collection = {
+    schemaVersion: 1,
+    slug: "catalog-fixture",
+    title: "Catalog Fixture",
+    members: [{
+      slug: "sunlit",
+      title: "Sunlit",
+      url: "https://example.com/sunlit",
+      treatment: "effect",
+      status: "analyzed",
+    }],
+  };
+  fs.writeFileSync(path.join(project, ".clone", "project.json"), `${JSON.stringify(state, null, 2)}\n`);
+  const memberApplied = run([
+    "--project", project,
+    "--case", "sunlit",
+    "--capability", "dappled light",
+    "--subject", "sunlight",
+    "--keywords", "树影,自然光",
+    "--apply",
+  ]);
+  assert.equal(memberApplied.status, 0, memberApplied.stderr || memberApplied.stdout);
+  const collectionState = JSON.parse(fs.readFileSync(path.join(project, ".clone", "project.json")));
+  assert.deepEqual(collectionState.collection.members[0].catalog.tags.capability, ["dappled-light"]);
+  assert.match(fs.readFileSync(path.join(project, "README.md"), "utf8"), /### 案例分类/);
+  assert.match(fs.readFileSync(path.join(project, "README.md"), "utf8"), /`sunlit`/);
+
+  const memberSynced = run(["--project", project, "--github", "--apply"], {
+    PATH: `${fakeBin}:${process.env.PATH}`,
+    YAH_TEST_GH_ARGS: ghArgs,
+    YAH_TEST_GH_INPUT: ghInput,
+  });
+  assert.equal(memberSynced.status, 0, memberSynced.stderr || memberSynced.stdout);
+  const collectionPayload = JSON.parse(fs.readFileSync(ghInput, "utf8"));
+  assert.ok(collectionPayload.names.includes("dappled-light"));
+  assert.ok(collectionPayload.names.includes("sunlight"));
+
   console.log("catalog project and GitHub topic projection: OK");
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true });

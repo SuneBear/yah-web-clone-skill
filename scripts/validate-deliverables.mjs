@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-import { catalogProblems, catalogTopics } from "./lib/catalog.mjs";
+import { projectCatalogProblems, projectCatalogTopics } from "./lib/catalog.mjs";
 import { readProjectConfig } from "./lib/project-state.mjs";
 
 function usage() {
@@ -51,6 +51,7 @@ function validate(project, config) {
   const existsDir = (relative) => fs.existsSync(path.join(project, relative)) && fs.statSync(path.join(project, relative)).isDirectory();
   const mode = config.mode || "full";
   const site = config.paths?.runnableMirror || "site";
+  const cases = config.paths?.runnableCollection || "cases";
   const lab = config.paths?.runnableLab || "lab";
   const docs = config.paths?.humanDocs || "docs";
   const evidence = config.paths?.evidence || ".clone/evidence";
@@ -66,20 +67,20 @@ function validate(project, config) {
   if (!pkg.scripts?.["build:deploy"]) add("error", "missing-deploy-command", "package.json must expose npm run build:deploy.", "package.json");
   const readme = readText(path.join(project, "README.md"));
   if (!readme) add("error", "missing-readme", "README.md is required.", "README.md");
-  for (const problem of catalogProblems(config.catalog)) {
+  for (const problem of projectCatalogProblems(config)) {
     add("warning", "catalog-metadata", problem, config.paths?.work ? ".clone/project.json" : "clone.config.json");
   }
-  const topics = catalogTopics(config.catalog);
+  const topics = projectCatalogTopics(config);
   if (topics.length && (!readme.includes("<!-- yah-catalog:start -->") || !topics.every((topic) => readme.includes(`\`${topic}\``)))) {
     add("warning", "catalog-readme", "Run yah catalog --apply to project catalog metadata into README.", "README.md");
   }
 
-  if (mode !== "effect") {
+  if (["full", "mirror"].includes(mode)) {
     if (!existsDir(site) || !hasHtml(path.join(project, site))) {
       add("error", "missing-site", "This mode requires a runnable site containing HTML.", site);
     }
   } else if (existsDir(site)) {
-    add("warning", "unexpected-site", "effect mode should not include an unrelated site mirror.", site);
+    add("warning", "unexpected-site", `${mode} mode should not include an unrelated site mirror.`, site);
   }
 
   if (mode === "mirror") {
@@ -87,7 +88,7 @@ function validate(project, config) {
     if (fs.existsSync(path.join(project, docs, "ANALYSIS.md"))) {
       add("warning", "unexpected-analysis", "mirror mode should not include implementation analysis.", `${docs}/ANALYSIS.md`);
     }
-  } else {
+  } else if (["full", "effect"].includes(mode)) {
     if (!existsDir(lab) || !fs.existsSync(path.join(project, lab, "index.html"))) {
       add("error", "missing-lab", "full/effect mode requires a runnable Lab index.", `${lab}/index.html`);
     }
@@ -146,6 +147,87 @@ function validate(project, config) {
     }
     const mediaFiles = walk(path.join(project, docs, "media")).filter((file) => /\.(?:avif|jpe?g|mp4|png|webm|webp)$/i.test(file));
     if (!mediaFiles.length) add("error", "missing-media", "Keep at least one referenced visual artifact for full/effect delivery.", `${docs}/media`);
+  } else if (mode === "collection") {
+    if (!existsDir(cases) || !fs.existsSync(path.join(project, cases, "index.html"))) {
+      add("error", "missing-collection-index", "collection mode requires a runnable cases/index.html.", `${cases}/index.html`);
+    }
+
+    const members = Array.isArray(config.collection?.members) ? config.collection.members : [];
+    if (members.length < 2) add("error", "collection-too-small", "A collection requires at least two members.", "clone.config.json#collection.members");
+    const seenSlugs = new Set();
+    const treatments = new Set(["reference-only", "mirror", "effect", "full"]);
+    const statuses = new Set(["pending", "captured", "analyzed", "implemented", "verified", "blocked"]);
+    for (const member of members) {
+      const slug = String(member?.slug || "").trim();
+      if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+        add("error", "invalid-member-slug", "Each collection member needs a kebab-case slug.", "clone.config.json#collection.members");
+        continue;
+      }
+      if (seenSlugs.has(slug)) add("error", "duplicate-member-slug", `Duplicate collection member slug: ${slug}.`, "clone.config.json#collection.members");
+      seenSlugs.add(slug);
+      try {
+        new URL(member.url);
+      } catch {
+        add("error", "invalid-member-url", `Collection member ${slug} needs an absolute URL.`, "clone.config.json#collection.members");
+      }
+      if (!treatments.has(member.treatment)) {
+        add("error", "invalid-member-treatment", `Collection member ${slug} must use reference-only, mirror, effect, or full.`, "clone.config.json#collection.members");
+      }
+      if (!statuses.has(member.status)) {
+        add("error", "invalid-member-status", `Collection member ${slug} has an unsupported status.`, "clone.config.json#collection.members");
+      } else if (["pending", "captured"].includes(member.status)) {
+        add("error", "unfinished-member", `Collection member ${slug} has not reached analysis or an explicit blocked state.`, "clone.config.json#collection.members");
+      }
+      if (member.treatment !== "reference-only" && member.status !== "blocked") {
+        const hasRoute = typeof member.route === "string" && member.route.startsWith("/");
+        let hasCloneRepo = false;
+        try {
+          hasCloneRepo = new URL(member.cloneRepo).protocol.startsWith("http");
+        } catch {
+          hasCloneRepo = false;
+        }
+        if (!hasRoute && !hasCloneRepo) {
+          add("error", "missing-member-delivery", `Collection member ${slug} needs a local route or cloneRepo for treatment ${member.treatment}.`, "clone.config.json#collection.members");
+        }
+      }
+      const caseFile = path.join(project, docs, "cases", `${slug}.md`);
+      const caseText = readText(caseFile);
+      if (!caseText) add("error", "missing-case-analysis", `Collection member ${slug} needs an individual analysis.`, `${docs}/cases/${slug}.md`);
+      else {
+        if (!/来源|证据|SOURCE|PARTIAL|GUESS/i.test(caseText)) add("error", "case-evidence", `Collection member ${slug} must discuss evidence.`, `${docs}/cases/${slug}.md`);
+        if (!/集合|共性|差异|反例/i.test(caseText)) add("error", "case-relationship", `Collection member ${slug} must explain its relationship to the collection.`, `${docs}/cases/${slug}.md`);
+        if (/待补|TODO|TBD/i.test(caseText)) add("error", "case-placeholder", `Remove unresolved placeholders for collection member ${slug}.`, `${docs}/cases/${slug}.md`);
+      }
+      if (readme && !readme.includes(slug)) add("warning", "member-readme", `README should list collection member ${slug}.`, "README.md");
+    }
+
+    const comparisonFile = path.join(project, docs, "COMPARISON.md");
+    const synthesisFile = path.join(project, docs, "SYNTHESIS.md");
+    const comparison = readText(comparisonFile);
+    const synthesis = readText(synthesisFile);
+    if (!comparison) add("error", "missing-comparison", "collection mode requires a horizontal comparison matrix.", `${docs}/COMPARISON.md`);
+    else if (/待补|TODO|TBD/i.test(comparison)) add("error", "comparison-placeholder", "Remove unresolved placeholders from COMPARISON.md.", `${docs}/COMPARISON.md`);
+    if (!synthesis) add("error", "missing-synthesis", "collection mode requires synthesized commonalities and differences.", `${docs}/SYNTHESIS.md`);
+    else {
+      for (const [pattern, label] of [[/共性/, "共性"], [/差异|反例/, "差异与反例"], [/迁移|复用/, "可迁移方法"]]) {
+        if (!pattern.test(synthesis)) add("error", "synthesis-topic", `SYNTHESIS.md must cover ${label}.`, `${docs}/SYNTHESIS.md`);
+      }
+      if (/待补|TODO|TBD/i.test(synthesis)) add("error", "synthesis-placeholder", "Remove unresolved placeholders from SYNTHESIS.md.", `${docs}/SYNTHESIS.md`);
+    }
+
+    const mediaFiles = walk(path.join(project, docs, "media")).filter((file) => /\.(?:avif|jpe?g|mp4|png|webm|webp)$/i.test(file));
+    if (!mediaFiles.length) add("error", "missing-media", "Keep a small set of referenced visual artifacts for the collection.", `${docs}/media`);
+
+    if (existsDir(lab)) {
+      const labFiles = walk(path.join(project, lab));
+      const hasBuild = Boolean(pkg.scripts?.["build:lab"] || config.delivery?.labBuildCommand);
+      if (!labFiles.includes("index.html") && !hasBuild) {
+        add("error", "missing-lab-entry", "A collection Lab needs index.html or an explicit build:lab command.", lab);
+      }
+      if (!labFiles.some((file) => /\.(?:css|js|jsx|mjs|ts|tsx|glsl|wgsl)$/.test(file))) {
+        add("error", "missing-experiment-source", "A collection Lab needs readable experiment source.", lab);
+      }
+    }
   }
 
   const evidenceFiles = walk(path.join(project, evidence));

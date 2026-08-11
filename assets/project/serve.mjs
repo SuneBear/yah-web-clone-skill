@@ -13,6 +13,11 @@ if (!fs.existsSync(configFile)) {
   throw new Error(`Missing project config: ${processStateFile} or ${finalConfigFile}`);
 }
 const state = JSON.parse(fs.readFileSync(configFile, "utf8"));
+const packageFile = path.join(project, "package.json");
+const packageJson = fs.existsSync(packageFile) ? JSON.parse(fs.readFileSync(packageFile, "utf8")) : {};
+const labBuildCommand = String(state.delivery?.labBuildCommand || "").trim() || (packageJson.scripts?.["build:lab"] ? "npm run build:lab" : "");
+const labPreviewRoot = String(state.delivery?.labOutputDir || "").trim()
+  || (labBuildCommand ? "lab/dist" : state.paths?.runnableLab || "lab");
 
 function parseArgs(argv) {
   const out = { surface: "", port: 4173, host: "127.0.0.1" };
@@ -24,8 +29,8 @@ function parseArgs(argv) {
     else if (arg === "--help" || arg === "-h") out.help = true;
     else throw new Error(`Unexpected argument: ${arg}`);
   }
-  if (out.surface && !["site", "lab"].includes(out.surface)) {
-    throw new Error("--surface must be site or lab");
+  if (out.surface && !["site", "lab", "cases"].includes(out.surface)) {
+    throw new Error("--surface must be site, lab, or cases");
   }
   if (!Number.isInteger(out.port) || out.port < 1 || out.port > 65535) {
     throw new Error("--port must be between 1 and 65535");
@@ -102,23 +107,31 @@ function sendFile(response, file, surface) {
 try {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log("node scripts/serve.mjs [--surface site|lab] [--port 4173] [--host 127.0.0.1]");
+    console.log("node scripts/serve.mjs [--surface site|lab|cases] [--port 4173] [--host 127.0.0.1]");
     process.exit(0);
   }
-  const defaultSurface = args.surface || (state.mode === "effect" ? "lab" : "site");
+  const defaultSurface = args.surface || (state.mode === "effect" ? "lab" : state.mode === "collection" ? "cases" : "site");
+  const surfaceRoots = {
+    site: state.paths?.runnableMirror || "site",
+    lab: labPreviewRoot,
+    cases: state.paths?.runnableCollection || "cases",
+  };
   const server = http.createServer((request, response) => {
     const incoming = request.url || "/";
     const useLabRoute = !args.surface && incoming.startsWith("/__lab");
     const surface = useLabRoute ? "lab" : defaultSurface;
     const requestPath = useLabRoute ? incoming.replace(/^\/__lab(?=\/|$)/, "") || "/" : incoming;
-    const root = path.join(project, surface);
+    const root = path.join(project, surfaceRoots[surface]);
     const file = safeFile(root, requestPath);
     sendFile(response, file, surface);
   });
   server.listen(args.port, args.host, () => {
     console.log(`Yah Web Clone · ${state.mode}`);
     console.log(`Preview: http://${args.host}:${args.port}/`);
-    if (!args.surface && state.mode === "full") console.log(`Lab:     http://${args.host}:${args.port}/__lab/`);
+    const hasLab = fs.existsSync(path.join(project, surfaceRoots.lab, "index.html"));
+    if (!args.surface && ["full", "collection"].includes(state.mode) && hasLab) {
+      console.log(`Lab:     http://${args.host}:${args.port}/__lab/`);
+    }
   });
 } catch (error) {
   console.error(`preview failed: ${error.message}`);

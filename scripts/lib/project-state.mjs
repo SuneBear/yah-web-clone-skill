@@ -5,6 +5,7 @@ export const PROJECT_STAGES = Object.freeze([
   "mirror",
   "capture",
   "effect_extract",
+  "collection_analyze",
   "local_verify",
   "docs",
   "git_publish",
@@ -12,12 +13,13 @@ export const PROJECT_STAGES = Object.freeze([
   "production_verify",
 ]);
 
-export const PROJECT_MODES = Object.freeze(["full", "mirror", "effect"]);
+export const PROJECT_MODES = Object.freeze(["full", "mirror", "effect", "collection"]);
 
 const LOCAL_STAGES = Object.freeze({
   full: ["mirror", "capture", "effect_extract", "local_verify", "docs"],
   mirror: ["mirror", "local_verify"],
   effect: ["capture", "effect_extract", "local_verify", "docs"],
+  collection: ["capture", "collection_analyze", "local_verify", "docs"],
 });
 
 function normalizePublishTargets(input) {
@@ -69,6 +71,7 @@ export function createProjectState({
   url = "",
   mode = "full",
   effect = "",
+  collection = null,
   authorization = "unknown",
   publishTargets = [],
   config = {},
@@ -79,16 +82,18 @@ export function createProjectState({
   return {
     schemaVersion: 3,
     skill: "yah-web-clone",
-    skillVersion: "3.3",
+    skillVersion: "3.4",
     project: path.resolve(project),
     name,
     url,
     mode,
     effect,
+    ...(mode === "collection" ? { collection } : {}),
     authorization,
     paths: {
-      ...(mode !== "effect" ? { runnableMirror: "site" } : {}),
-      ...(mode !== "mirror" ? { runnableLab: "lab", humanDocs: "docs" } : {}),
+      ...(["full", "mirror"].includes(mode) ? { runnableMirror: "site" } : {}),
+      ...(mode === "collection" ? { runnableCollection: "cases" } : {}),
+      ...(["full", "effect", "collection"].includes(mode) ? { runnableLab: "lab", humanDocs: "docs" } : {}),
       evidence: ".clone/evidence",
       work: ".clone/work",
       archive: ".clone/archive",
@@ -97,12 +102,12 @@ export function createProjectState({
       runnableFromRoot: true,
       humanLanguage: config.docsLanguage || "zh-CN",
       preserveSourceContentLanguage: true,
-      fidelity: mode === "effect" ? "effect-baseline" : "site-1-to-1",
-      analysis: mode === "full" || mode === "effect",
-      keyScreenshots: mode === "full" || mode === "effect",
+      fidelity: mode === "effect" ? "effect-baseline" : mode === "collection" ? "per-member-treatment" : "site-1-to-1",
+      analysis: ["full", "effect", "collection"].includes(mode),
+      keyScreenshots: ["full", "effect", "collection"].includes(mode),
       motionRecording: "optional-low-priority",
-      gui: mode === "full" || mode === "effect" ? "dialkit-if-useful" : "none",
-      presets: mode === "full" || mode === "effect" ? "required-for-tunable-effects" : "none",
+      gui: ["full", "effect", "collection"].includes(mode) ? "dialkit-if-useful" : "none",
+      presets: ["full", "effect"].includes(mode) ? "required-for-tunable-effects" : mode === "collection" ? "derived-lab-if-tunable" : "none",
     },
     limits: {
       maxProjectSizeMB: Number(config.maxProjectSizeMB) || 250,
@@ -116,7 +121,7 @@ export function createProjectState({
       publishMode: config.publishMode || "direct-main",
       deploymentProvider: config.deploymentProvider || "cloudflare-pages",
       publishTargets: targets,
-      publishLayout: mode === "full" ? "site-with-lab" : mode === "effect" ? "lab" : "site",
+      publishLayout: mode === "full" ? "site-with-lab" : mode === "effect" ? "lab" : mode === "collection" ? "collection-with-optional-lab" : "site",
       labMountPath: config.labMountPath || "__lab",
       labBuildCommand: config.labBuildCommand || "",
       labOutputDir: config.labOutputDir || "",

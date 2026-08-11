@@ -11,7 +11,7 @@ function usage() {
   node scripts/record-motion.mjs --project <dir> --name <slug> [options]
 
 Options:
-  --surface <site|lab>       Local surface to record (default follows mode)
+  --surface <site|lab|cases> Local surface to record (default follows mode)
   --route <path>             Route within the surface (default: /)
   --url <url>                Record an external URL instead of starting the project
   --duration <seconds>       Motion duration (default: 6; capped by project config)
@@ -110,6 +110,14 @@ function localRoute(config, surface, input) {
   return `/${mount}${route}`;
 }
 
+function collectionLabExists(project, config) {
+  const packageFile = path.join(project, "package.json");
+  const pkg = fs.existsSync(packageFile) ? JSON.parse(fs.readFileSync(packageFile, "utf8")) : {};
+  const hasBuild = Boolean(config.delivery?.labBuildCommand || pkg.scripts?.["build:lab"]);
+  const root = config.delivery?.labOutputDir || (hasBuild ? "lab/dist" : config.paths?.runnableLab || "lab");
+  return fs.existsSync(path.join(project, root, "index.html"));
+}
+
 async function waitForServer(url, child) {
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
@@ -185,7 +193,7 @@ try {
   if (!Number.isFinite(args.settle) || args.settle < 0 || args.settle > 30) throw new Error("--settle must be between 0 and 30 seconds.");
   if (!["mp4", "webm"].includes(args.format)) throw new Error("--format must be mp4 or webm.");
   if (!["none", "scroll", "hover", "click", "drag"].includes(args.action)) throw new Error("Unsupported --action.");
-  if (args.surface && !["site", "lab"].includes(args.surface)) throw new Error("--surface must be site or lab.");
+  if (args.surface && !["site", "lab", "cases"].includes(args.surface)) throw new Error("--surface must be site, lab, or cases.");
 
   const project = path.resolve(args.project);
   const { config, finalized } = readProjectConfig(project);
@@ -193,9 +201,13 @@ try {
   if (args.duration > maxSeconds) throw new Error(`Recording exceeds maxRecordingSeconds (${maxSeconds}).`);
   const viewport = parseViewport(args.viewport);
   const name = safeName(args.name);
-  const surface = args.surface || (config.mode === "effect" ? "lab" : "site");
-  if (surface === "site" && config.mode === "effect") throw new Error("effect mode has no site surface.");
+  const surface = args.surface || (config.mode === "effect" ? "lab" : config.mode === "collection" ? "cases" : "site");
+  if (surface === "site" && ["effect", "collection"].includes(config.mode)) throw new Error(`${config.mode} mode has no site surface.`);
+  if (surface === "cases" && config.mode !== "collection") throw new Error("Only collection mode has a cases surface.");
   if (surface === "lab" && config.mode === "mirror") throw new Error("mirror mode has no Lab surface.");
+  if (surface === "lab" && config.mode === "collection" && !collectionLabExists(project, config)) {
+    throw new Error("collection mode has no built Lab yet. Run build:lab first when applicable.");
+  }
 
   let targetUrl = args.url;
   if (targetUrl) {

@@ -8,6 +8,7 @@ import {
   catalogProblems,
   catalogTopics,
   normalizeCatalog,
+  projectCatalogTopics,
 } from "./lib/catalog.mjs";
 import { readProjectConfig } from "./lib/project-state.mjs";
 
@@ -24,6 +25,7 @@ Options:
   --visual-style <csv>    Replace visual style tags
   --subject <csv>         Replace subject tags
   --keywords <csv>        Replace Chinese/natural-language keywords
+  --case <slug>           Update one collection member instead of project-level catalog
   --clear                 Clear all catalog metadata
   --github                Sync projected tags to GitHub Topics
   --repo <owner/name>      Override repository inferred from config
@@ -33,7 +35,7 @@ Dry-run by default. Unspecified fields retain their current values.`);
 }
 
 function parseArgs(argv) {
-  const out = { project: "", apply: false, github: false, repo: "", clear: false, fields: {} };
+  const out = { project: "", apply: false, github: false, repo: "", caseSlug: "", clear: false, fields: {} };
   const fieldFlags = {
     "--technology": "technology",
     "--capability": "capability",
@@ -47,6 +49,7 @@ function parseArgs(argv) {
     else if (arg === "--apply") out.apply = true;
     else if (arg === "--github") out.github = true;
     else if (arg === "--repo") out.repo = argv[++i] || "";
+    else if (arg === "--case") out.caseSlug = argv[++i] || "";
     else if (arg === "--clear") out.clear = true;
     else if (fieldFlags[arg]) out.fields[fieldFlags[arg]] = argv[++i] ?? "";
     else if (arg === "--help" || arg === "-h") out.help = true;
@@ -55,21 +58,41 @@ function parseArgs(argv) {
   return out;
 }
 
-function renderBlock(catalog) {
-  const lines = [START, "## 分类", ""];
+function renderCatalogLines(catalog) {
+  const lines = [];
   for (const field of CATALOG_TAG_FIELDS) {
     const tags = catalog.tags[field];
     if (tags.length) lines.push(`- ${CATALOG_LABELS[field]}：${tags.map((tag) => `\`${tag}\``).join("、")}`);
   }
   if (catalog.keywords.length) lines.push(`- 关键词：${catalog.keywords.join("、")}`);
+  return lines;
+}
+
+function renderBlock(config) {
+  const catalog = normalizeCatalog(config.catalog);
+  const lines = [START, "## 分类", ""];
+  lines.push(...renderCatalogLines(catalog));
+  if (config.mode === "collection") {
+    const tagged = (config.collection?.members || [])
+      .map((member) => ({ ...member, catalog: normalizeCatalog(member.catalog) }))
+      .filter((member) => catalogTopics(member.catalog).length);
+    if (tagged.length) {
+      lines.push("", "### 案例分类", "");
+      for (const member of tagged) {
+        const topics = catalogTopics(member.catalog).map((topic) => `\`${topic}\``).join("、");
+        const keywords = member.catalog.keywords.length ? `；${member.catalog.keywords.join("、")}` : "";
+        lines.push(`- \`${member.slug}\`：${topics}${keywords}`);
+      }
+    }
+  }
   lines.push(END);
   return lines.join("\n");
 }
 
-function projectReadme(readme, catalog) {
+function projectReadme(readme, config) {
   const start = readme.indexOf(START);
   const end = readme.indexOf(END);
-  const block = catalogTopics(catalog).length ? renderBlock(catalog) : "";
+  const block = projectCatalogTopics(config).length ? renderBlock(config) : "";
   if (start >= 0 && end >= start) {
     const after = end + END.length;
     return `${readme.slice(0, start).trimEnd()}${block ? `\n\n${block}` : ""}${readme.slice(after)}`.replace(/\n{3,}/g, "\n\n");
@@ -106,7 +129,14 @@ try {
 
   const project = path.resolve(args.project);
   const { file, config } = readProjectConfig(project);
-  const base = args.clear ? normalizeCatalog() : normalizeCatalog(config.catalog);
+  let memberIndex = -1;
+  if (args.caseSlug) {
+    if (config.mode !== "collection") throw new Error("--case is only valid for collection mode");
+    memberIndex = (config.collection?.members || []).findIndex((member) => member.slug === args.caseSlug);
+    if (memberIndex < 0) throw new Error(`Unknown collection member: ${args.caseSlug}`);
+  }
+  const currentCatalog = memberIndex >= 0 ? config.collection.members[memberIndex].catalog : config.catalog;
+  const base = args.clear ? normalizeCatalog() : normalizeCatalog(currentCatalog);
   const nextInput = { tags: { ...base.tags }, keywords: base.keywords };
   for (const field of CATALOG_TAG_FIELDS) {
     if (Object.hasOwn(args.fields, field)) nextInput.tags[field] = args.fields[field];
@@ -116,15 +146,26 @@ try {
   const problems = catalogProblems(catalog);
   if (problems.length && !args.clear) throw new Error(problems.join("；"));
 
-  const topics = catalogTopics(catalog);
+  const nextConfig = memberIndex >= 0
+    ? {
+      ...config,
+      collection: {
+        ...config.collection,
+        members: config.collection.members.map((member, index) => index === memberIndex ? { ...member, catalog } : member),
+      },
+    }
+    : { ...config, catalog };
+  const topics = projectCatalogTopics(nextConfig);
+  if (topics.length > 20) throw new Error(`项目与案例汇总后的 GitHub Topics 最多 20 个，当前为 ${topics.length} 个`);
   const readmeFile = path.join(project, "README.md");
   const readme = fs.existsSync(readmeFile) ? fs.readFileSync(readmeFile, "utf8") : "";
-  const nextReadme = projectReadme(readme, catalog);
+  const nextReadme = projectReadme(readme, nextConfig);
   const repo = args.github ? inferredRepo(config, args.repo) : "";
   if (args.github && !repo) throw new Error("无法从配置推断 GitHub 仓库，请传入 --repo <owner/name>");
 
   console.log(`Project: ${project}`);
   console.log(`Config: ${file}`);
+  console.log(`Target: ${memberIndex >= 0 ? `case:${args.caseSlug}` : "project"}`);
   for (const field of CATALOG_TAG_FIELDS) {
     console.log(`${CATALOG_LABELS[field]}: ${catalog.tags[field].join(", ") || "-"}`);
   }
@@ -137,7 +178,6 @@ try {
     process.exit(0);
   }
 
-  const nextConfig = { ...config, catalog };
   if (file.includes(`${path.sep}.clone${path.sep}`)) nextConfig.updatedAt = new Date().toISOString();
   fs.writeFileSync(file, `${JSON.stringify(nextConfig, null, 2)}\n`);
   if (readme) fs.writeFileSync(readmeFile, nextReadme);

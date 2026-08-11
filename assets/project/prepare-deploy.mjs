@@ -19,6 +19,7 @@ Layout:
   full    site/ -> / and Lab output -> /__lab/
   mirror  site/ -> /
   effect  Lab output -> /
+  collection  cases/ -> / and optional Lab output -> /__lab/
 `);
 }
 
@@ -122,11 +123,17 @@ try {
   const packageJson = readJson(path.join(project, "package.json"));
   const configuredCommand = String(state.delivery?.labBuildCommand || "").trim();
   const autoCommand = packageJson.scripts?.["build:lab"] ? "npm run build:lab" : "";
-  const labCommand = args.skipLabBuild ? "" : (args.labCommand || configuredCommand || autoCommand);
+  const candidateLabCommand = args.skipLabBuild ? "" : (args.labCommand || configuredCommand || autoCommand);
   const configuredOutput = String(state.delivery?.labOutputDir || "").trim();
-  const defaultLabOutput = labCommand ? "lab/dist" : (state.paths?.runnableLab || "lab");
+  const defaultLabOutput = candidateLabCommand ? "lab/dist" : (state.paths?.runnableLab || "lab");
   const labOutput = args.labOutput || configuredOutput || defaultLabOutput;
   const labMount = normalizeMount(state.delivery?.labMountPath || "__lab");
+  const staticLab = path.resolve(project, state.paths?.runnableLab || "lab");
+  const configuredLab = path.resolve(project, labOutput);
+  const collectionHasLab = state.mode === "collection"
+    && (Boolean(candidateLabCommand) || fs.existsSync(path.join(configuredLab, "index.html")) || fs.existsSync(path.join(staticLab, "index.html")));
+  const hasLab = ["full", "effect"].includes(state.mode) || collectionHasLab;
+  const labCommand = hasLab ? candidateLabCommand : "";
 
   if (labCommand) {
     console.log(`Building Lab: ${labCommand}`);
@@ -135,10 +142,12 @@ try {
     if (result.status !== 0) throw new Error(`Lab build failed with exit code ${result.status}.`);
   }
 
-  const siteSource = state.mode !== "effect"
-    ? resolveProjectPath(project, state.paths?.runnableMirror || "site", "site source")
-    : null;
-  const labSource = state.mode !== "mirror"
+  const primarySource = state.mode === "effect"
+    ? null
+    : state.mode === "collection"
+      ? resolveProjectPath(project, state.paths?.runnableCollection || "cases", "collection source")
+      : resolveProjectPath(project, state.paths?.runnableMirror || "site", "site source");
+  const labSource = hasLab
     ? resolveProjectPath(project, labOutput, "Lab output")
     : null;
   if (labSource && !fs.existsSync(path.join(labSource, "index.html"))) {
@@ -154,9 +163,9 @@ try {
     copySurface(labSource, output);
     surfaces.push({ route: "/", source: path.relative(project, labSource) });
   } else {
-    copySurface(siteSource, output);
-    surfaces.push({ route: "/", source: path.relative(project, siteSource) });
-    if (state.mode === "full") {
+    copySurface(primarySource, output);
+    surfaces.push({ route: "/", source: path.relative(project, primarySource) });
+    if (["full", "collection"].includes(state.mode) && labSource) {
       const labTarget = path.join(output, labMount);
       if (fs.existsSync(labTarget)) throw new Error(`Site already contains the Lab mount path: /${labMount}/`);
       copySurface(labSource, labTarget);
@@ -170,7 +179,7 @@ try {
     mode: state.mode,
     output: path.relative(project, output),
     surfaces,
-    lab: state.mode === "mirror" ? null : {
+    lab: !labSource ? null : {
       buildCommand: labCommand || null,
       output: path.relative(project, labSource),
       mountPath: state.mode === "effect" ? "/" : `/${labMount}/`,

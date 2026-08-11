@@ -19,6 +19,9 @@ const WORKFLOW_TOPICS = new Set([
   "full-clone",
   "mirror-clone",
   "effect-clone",
+  "collection",
+  "collection-clone",
+  "comparative-study",
 ]);
 
 function values(input) {
@@ -67,4 +70,26 @@ export function catalogProblems(catalog) {
   const workflow = topics.filter((topic) => WORKFLOW_TOPICS.has(topic) || topic.endsWith("-clone"));
   if (workflow.length) problems.push(`不要使用 clone/mode/workflow 系统标签：${workflow.join("、")}`);
   return problems;
+}
+
+export function projectCatalogTopics(config = {}) {
+  const catalogs = [config.catalog];
+  if (config.mode === "collection" && Array.isArray(config.collection?.members)) {
+    catalogs.push(...config.collection.members.map((member) => member.catalog));
+  }
+  return unique(catalogs.flatMap((catalog) => catalogTopics(catalog)));
+}
+
+export function projectCatalogProblems(config = {}) {
+  const problems = catalogProblems(config.catalog).map((problem) => `项目分类：${problem}`);
+  if (config.mode === "collection") {
+    for (const member of config.collection?.members || []) {
+      for (const problem of catalogProblems(member.catalog)) {
+        problems.push(`案例 ${member.slug || "<missing-slug>"}：${problem}`);
+      }
+    }
+  }
+  const topics = projectCatalogTopics(config);
+  if (topics.length > 20) problems.push(`项目与案例汇总后的 GitHub Topics 最多 20 个，当前为 ${topics.length} 个`);
+  return unique(problems);
 }

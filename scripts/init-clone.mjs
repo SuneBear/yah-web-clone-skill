@@ -20,9 +20,11 @@ Modes:
   full    1:1 mirror + Chinese analysis + key screenshots + runnable effect lab (default)
   mirror  Local runnable mirror only; no teardown or effect lab
   effect  Reproduce one named effect as a standalone runnable lab
+  collection  Compare and organize multiple related references in one runnable study
 
 Options:
-  --mode <full|mirror|effect>
+  --mode <full|mirror|effect|collection>
+  --url <url>                    Repeat for collection mode (at least two)
   --effect <name>                 Required for effect mode
   --authorized                    Record that cloning permission was explicitly confirmed
   --publish <none|github|cloudflare|all|csv>
@@ -37,7 +39,7 @@ Creates only the surfaces required by the selected mode. Every project runs from
 function parseArgs(argv) {
   const out = {
     slug: null,
-    url: "",
+    urls: [],
     mode: "",
     effect: "",
     root: "",
@@ -48,7 +50,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") out.help = true;
-    else if (arg === "--url") out.url = argv[++i] || "";
+    else if (arg === "--url") out.urls.push(argv[++i] || "");
     else if (arg === "--mode") out.mode = argv[++i] || "";
     else if (arg === "--effect") out.effect = argv[++i] || "";
     else if (arg === "--root") out.root = argv[++i] || "";
@@ -70,9 +72,9 @@ function cleanSlug(input) {
     .replace(/^-+|-+$/g, "");
 }
 
-function projectName(slug) {
+function projectName(slug, mode) {
   const base = slug.replace(/(?:-clone|-mirror)+$/g, "") || slug;
-  return `${base}-clone`;
+  return mode === "collection" ? base : `${base}-clone`;
 }
 
 function normalizeMode(input) {
@@ -99,23 +101,53 @@ function modeLabel(mode) {
     full: "完整镜像与解构",
     mirror: "仅本地镜像",
     effect: "单效果复刻",
+    collection: "多来源 Collection",
   }[mode];
 }
 
-function readmeTemplate({ name, url, mode, effect, publishTargets }) {
+function collectionMembers(urls) {
+  const used = new Set();
+  return urls.map((input, index) => {
+    const url = new URL(input).href;
+    const parsed = new URL(url);
+    const seed = `${parsed.hostname.replace(/^www\./, "")}-${parsed.pathname}`;
+    const base = cleanSlug(seed) || `case-${index + 1}`;
+    let slug = base;
+    let suffix = 2;
+    while (used.has(slug)) slug = `${base}-${suffix++}`;
+    used.add(slug);
+    return {
+      slug,
+      title: slug,
+      url,
+      treatment: "reference-only",
+      status: "pending",
+    };
+  });
+}
+
+function readmeTemplate({ name, url, mode, effect, publishTargets, collection }) {
   const surfaces = [];
-  if (mode !== "effect") surfaces.push("- `site/`：保持原站行为的可运行镜像，不放调试 GUI 或教学改写。");
-  if (mode !== "mirror") surfaces.push("- `lab/`：独立可运行的效果复刻、参数 GUI 和 Preset，不依赖 Storybook。");
+  if (["full", "mirror"].includes(mode)) surfaces.push("- `site/`：保持原站行为的可运行镜像，不放调试 GUI 或教学改写。");
+  if (mode === "collection") surfaces.push("- `cases/`：Collection 列表与可运行成员入口；不堆放无筛选的完整抓取。");
+  if (["full", "effect"].includes(mode)) surfaces.push("- `lab/`：独立可运行的效果复刻、参数 GUI 和 Preset，不依赖 Storybook。");
+  if (mode === "collection") surfaces.push("- `lab/`：可选；只放跨案例提炼的可运行实验，存在时自动发布到 `/__lab/`。");
   if (mode !== "mirror") surfaces.push("- `docs/`：中文分析与少量关键截图；过程缓存不会放在这里。");
   surfaces.push("- `.clone/`：仅在工作过程中保存状态、精简证据和临时文件；最终会把长期内容提升后删除。");
   const preview = mode === "effect"
     ? "启动后打开终端显示的 Lab 地址。"
     : mode === "full"
       ? "启动后 `/` 预览镜像，`/__lab/` 预览效果实验室。"
+      : mode === "collection"
+        ? "启动后 `/` 预览 Collection；存在 Lab 时从 `/__lab/` 访问。"
       : "启动后 `/` 预览本地镜像。";
   const publishing = publishTargets.length
     ? `计划发布：${publishTargets.join("、")}。`
     : "GitHub 与部署未启用；本地验收后再决定是否发布。";
+
+  const sources = mode === "collection"
+    ? collection.members.map((member) => `- [${member.title}](${member.url}) · \`${member.treatment}\` · \`${member.status}\``).join("\n")
+    : `- 原站：${url || "待补"}`;
 
   return `# ${name}
 
@@ -123,7 +155,7 @@ function readmeTemplate({ name, url, mode, effect, publishTargets }) {
 
 ## 来源与状态
 
-- 原站：${url || "待补"}
+${sources}
 - ${publishing}
 
 ## 本地预览
@@ -142,7 +174,9 @@ ${surfaces.join("\n")}
 
 ${mode === "mirror"
     ? "镜像仍按 1:1 标准验证；本模式只省略技术解构、GUI、Preset 和研究代码。"
-    : "分析、关键截图、来源证据、忠实度结果与已知缺口在 `docs/ANALYSIS.md` 中维护。"}
+    : mode === "collection"
+      ? "逐项结论维护在 `docs/cases/`，横向比较与综合结论维护在 `docs/COMPARISON.md` 和 `docs/SYNTHESIS.md`。每个成员只按自己的 treatment 验收。"
+      : "分析、关键截图、来源证据、忠实度结果与已知缺口在 `docs/ANALYSIS.md` 中维护。"}
 `;
 }
 
@@ -211,6 +245,86 @@ function labIndex({ name, effect }) {
 `;
 }
 
+function collectionIndex({ name, members }) {
+  const items = members.map((member) => `      <li><a href="${member.url}">${member.title}</a><span>${member.treatment}</span></li>`).join("\n");
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${name} · Collection</title>
+  <style>
+    body { margin: 0; color: #24221e; background: #f1eee6; font: 16px/1.6 Georgia, serif; }
+    main { width: min(860px, calc(100% - 40px)); margin: 10vh auto; }
+    h1 { font-size: clamp(2.5rem, 8vw, 6rem); line-height: .9; }
+    ol { padding: 0; list-style: none; border-top: 1px solid #9a9589; }
+    li { display: flex; justify-content: space-between; gap: 24px; padding: 16px 0; border-bottom: 1px solid #9a9589; }
+    a { color: inherit; } span { color: #6d685e; font: 12px/1.6 ui-monospace, monospace; }
+  </style>
+</head>
+<body><main><p>Yah Web Clone · Collection</p><h1>${name}</h1><ol>
+${items}
+  </ol></main></body>
+</html>
+`;
+}
+
+function comparisonTemplate(members) {
+  const rows = members.map((member) => `| ${member.title} | ${member.treatment} | 待补 | 待补 | 待补 |`).join("\n");
+  return `# 横向比较
+
+| 案例 | 处理方式 | 核心机制 | 视觉特征 | 差异与反例 |
+|---|---|---|---|---|
+${rows}
+`;
+}
+
+function synthesisTemplate() {
+  return `# 综合结论
+
+## 研究问题
+
+待补。
+
+## 共性
+
+待补。
+
+## 差异与反例
+
+待补。
+
+## 可迁移方法
+
+待补。
+
+## 设计 DNA
+
+待补。
+`;
+}
+
+function caseTemplate(member) {
+  return `# ${member.title}
+
+- 来源：${member.url}
+- 处理方式：${member.treatment}
+- 状态：${member.status}
+
+## 观察与实现分析
+
+待补。
+
+## 来源与证据
+
+待补，使用 \`SOURCE / PARTIAL / GUESS\` 标记。
+
+## 与集合的关系
+
+待补它支持、补充或反驳了什么共性。
+`;
+}
+
 try {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || !args.slug) {
@@ -220,10 +334,21 @@ try {
 
   const slug = cleanSlug(args.slug);
   if (!slug) throw new Error("Slug is empty after normalization.");
-  const name = projectName(slug);
   const config = loadYahConfig({ overrideRoot: args.root });
-  const mode = normalizeMode(args.mode || config.defaultMode || "full");
+  const urls = [...new Set(args.urls.map((url) => url.trim()).filter(Boolean))];
+  const inferredMode = !args.mode && urls.length > 1 ? "collection" : "";
+  const mode = normalizeMode(args.mode || inferredMode || config.defaultMode || "full");
+  const name = projectName(slug, mode);
   if (mode === "effect" && !args.effect.trim()) throw new Error("effect mode requires --effect <name>.");
+  if (mode === "collection" && urls.length < 2) throw new Error("collection mode requires at least two --url values.");
+  if (mode !== "collection" && urls.length > 1) throw new Error("Multiple --url values require collection mode.");
+  const collection = mode === "collection" ? {
+    schemaVersion: 1,
+    slug: name,
+    title: name,
+    members: collectionMembers(urls),
+  } : null;
+  const url = urls[0] || "";
   const publishTargets = parsePublishTargets(args.publish, config.publishTargets || []);
   const project = path.join(config.workspaceRoot, name);
 
@@ -231,15 +356,26 @@ try {
 
   fs.mkdirSync(path.join(project, ".clone", "evidence"), { recursive: true });
   fs.mkdirSync(path.join(project, ".clone", "work"), { recursive: true });
-  if (mode !== "effect") fs.mkdirSync(path.join(project, "site"), { recursive: true });
-  if (mode !== "mirror") {
+  if (["full", "mirror"].includes(mode)) fs.mkdirSync(path.join(project, "site"), { recursive: true });
+  if (["full", "effect"].includes(mode)) {
     fs.mkdirSync(path.join(project, "lab", "effects"), { recursive: true });
     fs.mkdirSync(path.join(project, "docs", "media"), { recursive: true });
     fs.writeFileSync(path.join(project, "lab", "index.html"), labIndex({ name, effect: args.effect }));
     fs.writeFileSync(
       path.join(project, "docs", "ANALYSIS.md"),
-      analysisTemplate({ name, url: args.url, mode, effect: args.effect })
+      analysisTemplate({ name, url, mode, effect: args.effect })
     );
+  }
+  if (mode === "collection") {
+    fs.mkdirSync(path.join(project, "cases"), { recursive: true });
+    fs.mkdirSync(path.join(project, "docs", "cases"), { recursive: true });
+    fs.mkdirSync(path.join(project, "docs", "media"), { recursive: true });
+    fs.writeFileSync(path.join(project, "cases", "index.html"), collectionIndex({ name, members: collection.members }));
+    fs.writeFileSync(path.join(project, "docs", "COMPARISON.md"), comparisonTemplate(collection.members));
+    fs.writeFileSync(path.join(project, "docs", "SYNTHESIS.md"), synthesisTemplate());
+    for (const member of collection.members) {
+      fs.writeFileSync(path.join(project, "docs", "cases", `${member.slug}.md`), caseTemplate(member));
+    }
   }
 
   fs.copyFileSync(
@@ -252,14 +388,15 @@ try {
   );
   fs.writeFileSync(
     path.join(project, "README.md"),
-    readmeTemplate({ name, url: args.url, mode, effect: args.effect, publishTargets })
+    readmeTemplate({ name, url, mode, effect: args.effect, publishTargets, collection })
   );
   const packageScripts = {
     dev: "node .clone/serve.mjs",
     "build:deploy": "node .clone/prepare-deploy.mjs",
   };
-  if (mode !== "effect") packageScripts.site = "node .clone/serve.mjs --surface site";
-  if (mode !== "mirror") packageScripts.lab = "node .clone/serve.mjs --surface lab";
+  if (["full", "mirror"].includes(mode)) packageScripts.site = "node .clone/serve.mjs --surface site";
+  if (["full", "effect"].includes(mode)) packageScripts.lab = "node .clone/serve.mjs --surface lab";
+  if (mode === "collection") packageScripts.cases = "node .clone/serve.mjs --surface cases";
   fs.writeFileSync(path.join(project, "package.json"), `${JSON.stringify({
     name,
     private: true,
@@ -290,9 +427,10 @@ try {
   writeProjectState(project, createProjectState({
     project,
     name,
-    url: args.url,
+    url,
     mode,
     effect: args.effect.trim(),
+    collection,
     authorization: args.authorized ? "explicitly-authorized" : "unknown",
     publishTargets,
     config: { ...config, complexityLevel: args.level },

@@ -1,4 +1,4 @@
 interface:
   display_name: "Yah Web Clone"
-  short_description: "三模式网站复刻、可学习效果实验室、验收与动效录屏工作流"
+  short_description: "四模式网站复刻、Collection、可学习实验室、验收与动效录屏工作流"
   default_prompt: "使用 $yah-web-clone 默认以 full 模式创建可直接预览、可学习、可验证且体积受控的网站复刻项目。"

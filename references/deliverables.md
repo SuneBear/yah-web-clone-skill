@@ -7,8 +7,9 @@
 ```text
 <project>/
 ├── site/                 # full、mirror
-├── lab/                  # full、effect
-├── docs/                 # full、effect
+├── cases/                # collection
+├── lab/                  # full、effect；collection 可选
+├── docs/                 # full、effect、collection
 └── .clone/              # 仅过程阶段存在
     ├── project.json
     ├── evidence/
@@ -49,6 +50,17 @@
 - 原版默认参数与派生 Preset 分开，所有猜测值标为 `GUESS`。
 - `docs/ANALYSIS.md` 包含依赖、参数、来源、差异、验证结果和迁移方法。
 
+## `collection` 验收
+
+- 至少包含两个成员；每个成员有唯一 slug、绝对 URL、状态和 `reference-only`、`mirror`、`effect` 或 `full` treatment。
+- `cases/index.html` 可从项目根直接预览，列出全部成员；只为确实需要本地运行的成员创建 `cases/<slug>/`。
+- 每个成员有 `docs/cases/<slug>.md`，覆盖观察、来源证据以及它对集合共性、差异或反例的贡献。
+- `docs/COMPARISON.md` 提供横向矩阵；`docs/SYNTHESIS.md` 提炼共性、差异、反例、设计 DNA 和可迁移方法；最终交付不保留占位符。
+- 集合级和成员级 Catalog 都来自稳定配置；README 分类与 GitHub Topics 可重新投影。
+- `lab/` 可省略；一旦存在就必须有可读源码和静态入口或 `build:lab`，并部署到 `/__lab/`。
+- `reference-only` 不声称 1:1；其余成员分别继承对应模式的忠实度门槛。
+- 每个成员只保留被文档引用的精选媒体和必要运行资产；完整重型 `full` 优先拆到独立 `<slug>-clone` 仓库。
+
 ## 文档媒体
 
 通常保留 3-6 张真正有辨识度的图片：桌面 Hero、移动端、关键特效状态或交互前后。优先 WebP；需要像素 diff 的原始 PNG 留在 `.clone/work/`，只在它本身是证据时提升到 `.clone/evidence/`。
@@ -80,6 +92,6 @@
 - GitHub visibility、组织和 publish mode 与配置一致。
 - 不提交 `.clone/work/`、最终生成的 `dist/`、`node_modules`、缓存、日志或无用大文件。
 - 部署内容与本地验证的 commit/build 相同。
-- `full` 验证线上 `/__lab/` 与核心效果入口；Lab 需要构建时记录构建命令、输出目录和 public base。
+- `full` 验证线上 `/__lab/` 与核心效果入口；Collection 存在 Lab 时同样验证。Lab 需要构建时记录构建命令、输出目录和 public base。
 - 验证生产域名、根入口、深层路由、资源 MIME 与视频 Range 请求。
 - README、GitHub homepage/description 和生产 URL 一致。

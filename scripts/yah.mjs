@@ -9,9 +9,9 @@ const scripts = path.dirname(fileURLToPath(import.meta.url));
 function usage() {
   console.log(`Yah Web Clone v3
 
-  yah.mjs init <slug> --url <url> --mode full|mirror|effect [options]
+  yah.mjs init <slug> --url <url> --mode full|mirror|effect|collection [options]
   yah.mjs status --project <dir>
-  yah.mjs serve --project <dir> [--surface site|lab] [--port 4173]
+  yah.mjs serve --project <dir> [--surface site|lab|cases] [--port 4173]
   yah.mjs prepare-deploy --project <dir> [--lab-command <cmd>] [--lab-output <dir>]
   yah.mjs catalog --project <dir> [classification options] [--github] [--apply]
   yah.mjs validate --project <dir> [--strict] [--write]

@@ -61,12 +61,24 @@ function finalConfig(state) {
     url: state.url || "",
     mode,
     effect: state.effect || "",
+    ...(mode === "collection" ? {
+      collection: state.collection ? {
+        ...state.collection,
+        members: (state.collection.members || []).map((member) => ({
+          ...member,
+          catalog: normalizeCatalog(member.catalog),
+        })),
+      } : null,
+    } : {}),
     authorization: state.authorization || "unknown",
     paths: {
-      ...(mode !== "effect" ? {
+      ...(["full", "mirror"].includes(mode) ? {
         runnableMirror: ensureRelative(state.paths?.runnableMirror, "site", "runnableMirror"),
       } : {}),
-      ...(mode !== "mirror" ? {
+      ...(mode === "collection" ? {
+        runnableCollection: ensureRelative(state.paths?.runnableCollection, "cases", "runnableCollection"),
+      } : {}),
+      ...(["full", "effect", "collection"].includes(mode) ? {
         runnableLab: ensureRelative(state.paths?.runnableLab, "lab", "runnableLab"),
         humanDocs: ensureRelative(state.paths?.humanDocs, "docs", "humanDocs"),
       } : {}),
@@ -105,10 +117,14 @@ function updatePackage(project, mode) {
   const scripts = { ...(pkg.scripts || {}) };
   scripts.dev = "node scripts/serve.mjs";
   scripts["build:deploy"] = "node scripts/prepare-deploy.mjs";
-  if (mode !== "effect") scripts.site = "node scripts/serve.mjs --surface site";
+  if (["full", "mirror"].includes(mode)) scripts.site = "node scripts/serve.mjs --surface site";
   else delete scripts.site;
-  if (mode !== "mirror") scripts.lab = "node scripts/serve.mjs --surface lab";
+  if (["full", "effect"].includes(mode) || (mode === "collection" && (fs.existsSync(path.join(project, "lab", "index.html")) || scripts["build:lab"]))) {
+    scripts.lab = "node scripts/serve.mjs --surface lab";
+  }
   else delete scripts.lab;
+  if (mode === "collection") scripts.cases = "node scripts/serve.mjs --surface cases";
+  else delete scripts.cases;
   fs.writeFileSync(file, `${JSON.stringify({ ...pkg, scripts }, null, 2)}\n`);
 }
 

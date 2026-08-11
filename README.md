@@ -4,15 +4,16 @@ Yah Web Clone 是一套面向创意网站、WebGL、Canvas、Three.js、Shader�
 
 默认使用中文交付，默认模式为 `full`。Agent 的完整执行契约以 [`SKILL.md`](SKILL.md) 为准；本 README 只提供给维护者和使用者快速定位。
 
-## 三种模式
+## 四种模式
 
 | 模式 | 适用场景 | 主要产物 |
 |---|---|---|
 | `full` | 严格 1:1 镜像并解构关键实现 | `site/` + `lab/` + `docs/` |
 | `mirror` | 只保存可本地运行的网站缓存 | `site/` + 最小镜像证据 |
 | `effect` | 只忠实复刻一个独立效果 | `lab/` + `docs/` + 效果证据 |
+| `collection` | 组织多个相似网站并做逐项分析、横向比较与共性提炼 | `cases/` + `docs/` + 可选 `lab/` |
 
-项目和仓库统一以 `<slug>-clone` 命名。所有模式都从项目根目录运行，不依赖外部 Site 工程或 Storybook。
+单站与单效果项目统一以 `<slug>-clone` 命名；Collection 使用不带后缀的主题名。所有模式都从项目根目录运行，不依赖外部 Site 工程或 Storybook。
 
 ## 核心能力
 
@@ -23,6 +24,7 @@ Yah Web Clone 是一套面向创意网站、WebGL、Canvas、Three.js、Shader�
 - 以 `clone.config.json.catalog` 为分类源，投影 README 分类区并同步 GitHub Topics，方便 Sune Library 检索。
 - 在最终交付前提升长期证据、清理临时内容并删除 `.clone/` 过程目录。
 - 将主站与可选 Lab 组合为同一静态部署产物，Lab 默认挂载到 `/__lab/`。
+- 将相似网站组织为可检索 Collection，为每个成员选择 `reference-only`、`mirror`、`effect` 或 `full`，再提炼共性、差异和设计 DNA。
 
 ## 公开案例
 
@@ -79,6 +81,15 @@ node "$YAH_WEB_CLONE_DIR/scripts/yah.mjs" init example \
   --mode full
 ```
 
+创建 Collection 时重复传入 URL；两个以上 URL 也会自动选择 `collection`：
+
+```bash
+node "$YAH_WEB_CLONE_DIR/scripts/yah.mjs" init nature-sketches \
+  --mode collection \
+  --url https://example-a.com \
+  --url https://example-b.com
+```
+
 查看全部命令：
 
 ```bash
@@ -109,7 +120,7 @@ node "$YAH_WEB_CLONE_DIR/scripts/yah.mjs" finalize --project ./example-clone
 
 ## 项目分类
 
-完成侦察后再填写有证据的内容标签，不添加 clone、mode 或 workflow 系统标签：
+完成侦察后再填写有证据的内容标签，不添加 clone、collection、mode 或 workflow 系统标签：
 
 ```bash
 node "$YAH_WEB_CLONE_DIR/scripts/yah.mjs" catalog \
@@ -129,12 +140,22 @@ node "$YAH_WEB_CLONE_DIR/scripts/yah.mjs" catalog \
   --project ./example-clone --github --apply
 ```
 
+Collection 的成员标签使用 `--case <slug>`；README 会显示成员分类，GitHub Topics 同步项目与成员标签的仓库级去重合集：
+
+```bash
+node "$YAH_WEB_CLONE_DIR/scripts/yah.mjs" catalog \
+  --project ./nature-sketches --case example-a-com \
+  --capability dappled-light --visual-style organic-motion \
+  --keywords "树影,自然光" --apply
+```
+
 ## 交付结构
 
 ```text
 <project>/
 ├── site/                 # full、mirror：权威镜像
-├── lab/                  # full、effect：独立可运行效果
+├── cases/                # collection：列表与成员入口
+├── lab/                  # full、effect；collection 可选
 ├── docs/                 # 分析、精选媒体与精简证据
 ├── scripts/              # 最终预览与部署脚本
 ├── clone.config.json     # 稳定配置与检索分类
@@ -146,7 +167,8 @@ node "$YAH_WEB_CLONE_DIR/scripts/yah.mjs" catalog \
 
 ## 参考文档
 
-- [`references/deliverables.md`](references/deliverables.md)：三种模式的交付与验收清单。
+- [`references/deliverables.md`](references/deliverables.md)：四种模式的交付与验收清单。
+- [`references/collection.md`](references/collection.md)：成员 treatment、目录、比较、综合和体积边界。
 - [`references/effect-extraction.md`](references/effect-extraction.md)：RAW REPLAY、PROJECTIZE 和效果 baseline。
 - [`references/motion-capture.md`](references/motion-capture.md)：等待 ready、裁切 Loading 与 GitHub 视频播放。
 - [`references/catalog.md`](references/catalog.md)：分类字段、README 投影与 GitHub Topics。
@@ -161,7 +183,7 @@ for test in tests/*.test.mjs; do
 done
 ```
 
-测试覆盖默认模式、三模式矩阵、部署组合、最终提升、项目分类以及 MP4/WebM 录制。
+测试覆盖默认模式、四模式矩阵、部署组合、最终提升、项目分类以及 MP4/WebM 录制。
 
 ## 版本记录
 

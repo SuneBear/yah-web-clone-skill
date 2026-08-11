@@ -1,6 +1,6 @@
 # 项目检索分类
 
-把 `clone.config.json.catalog` 作为分类 Source of Truth。README 分类区与 GitHub Topics 都是可重新生成的投影，避免三处漂移。
+把 `clone.config.json.catalog` 作为项目分类 Source of Truth；Collection 成员使用 `collection.members[].catalog`。README 分类区与 GitHub Topics 都是可重新生成的投影，避免多处漂移。
 
 ## 配置契约
 
@@ -27,7 +27,7 @@
 
 标签使用小写英文 kebab-case。优先使用生态中常见的规范词，如 `threejs`、`webgl`、`webgpu`、`glsl`、`scroll-animation`，不要制造含义相同的新拼法。未知值保持未知，不为了填满字段而猜测。
 
-不要加入 `yah-web-clone`、`web-clone`、`full-clone`、`mirror-clone`、`effect-clone` 等系统标签。组织、仓库后缀、`skill` 和 `mode` 已能表达这些信息；分类只回答“这里有什么值得找到的内容”。
+不要加入 `yah-web-clone`、`web-clone`、`full-clone`、`mirror-clone`、`effect-clone`、`collection` 或 `comparative-study` 等系统标签。仓库与 `mode` 已能表达这些信息；分类只回答“这里有什么值得找到的内容”。
 
 ## CLI
 
@@ -41,6 +41,8 @@ node "$YAH" catalog --project "$YAH_PROJECT" \
 ```
 
 默认只预览。加 `--apply` 后更新当前阶段的 `.clone/project.json` 或最终 `clone.config.json`，并生成 README 的受管分类区。未传入的字段保留原值；`--clear` 清空全部分类。
+
+Collection 成员传入 `--case <slug>`。每个成员使用同一套分类字段；README 分类区保留成员与标签的对应关系。GitHub Topics 只能表达仓库级标签，因此使用项目与全部成员标签的去重合集，合集仍不得超过 20 个。
 
 仓库创建后运行：
 
