@@ -22,6 +22,8 @@
 
 除非用户明确指定其他语言，README、分析、运行说明、GitHub description 和交付说明使用中文；`site/` 的原站文案保持原语言，不做翻译。
 
+所有模式在任何抓取或重建前完成 `source_discovery`，记录源码候选或有边界的 code no-match。使用素材时同时登记 original/replacement/reference/presentation 角色；内部来源可省略 revision、checksum 和 license。
+
 ## `full` 验收
 
 - `site/` 从 web 根运行，保留原布局、内容、资产、交互与响应式。
@@ -55,10 +57,12 @@
 - 至少包含两个成员；每个成员有唯一 slug、绝对 URL、状态和 `reference-only`、`mirror`、`effect` 或 `full` treatment。
 - `cases/index.html` 可从项目根直接预览，列出全部成员；只为确实需要本地运行的成员创建 `cases/<slug>/`。
 - 每个成员有 `docs/cases/<slug>.md`，覆盖观察、来源证据以及它对集合共性、差异或反例的贡献。
-- `docs/COMPARISON.md` 提供横向矩阵；`docs/SYNTHESIS.md` 提炼共性、差异、反例、设计 DNA 和可迁移方法；最终交付不保留占位符。
+- `docs/COMPARISON.md` 提供横向矩阵；`docs/SYNTHESIS.md` 提炼共性、差异、反例和可迁移方法；只有研究问题明确需要时才增加 Design DNA。最终交付不保留占位符。
 - 集合级和成员级 Catalog 都来自稳定配置；README 分类与 GitHub Topics 可重新投影。
 - `lab/` 可省略；一旦存在就必须有可读源码和静态入口或 `build:lab`，并部署到 `/__lab/`。
 - `reference-only` 不声称 1:1；其余成员分别继承对应模式的忠实度门槛。
+- 纯 `reference-only` Collection 可直接使用 provider 详情页和原站链接，不强制保存本地截图或录屏。
+- `yah collection sync --apply` 后 `cases/index.html` 与 README 来源区必须匹配 Meta；有 `assets` 时显示允许呈现的预览和来源链接。
 - 每个成员只保留被文档引用的精选媒体和必要运行资产；完整重型 `full` 优先拆到独立 `<slug>-clone` 仓库。
 
 ## 文档媒体

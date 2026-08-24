@@ -184,7 +184,7 @@ function report(files, original, clone, evidence) {
 - 原站 URL: ${original.url}
 - 克隆 URL: ${clone.url}
 - 自动推断复杂度: ${complexity}
-- 工作模式建议: ${complexity === "L5" ? "mirror + study（先保真镜像，再整理可读实现）" : complexity === "L6" ? "analysis；如用户要改造再进入 adapt" : "mirror；仅在用户明确要求改造时使用 adapt"}
+- 工作模式建议: ${complexity === "L5" ? "full（先保真镜像，再整理独立 Lab）" : complexity === "L6" ? "effect 或 full；按目标边界选择" : "full；用户明确只要缓存时使用 mirror"}
 - 自动报告边界: 结构、数量、框架、console 可自动比；传入 visual-diff 后可纳入像素差异分。内容残留和法务仍需审计。
 
 ## 技术信号

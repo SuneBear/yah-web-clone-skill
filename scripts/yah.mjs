@@ -11,9 +11,20 @@ function usage() {
 
   yah.mjs init <slug> --url <url> --mode full|mirror|effect|collection [options]
   yah.mjs status --project <dir>
+  yah.mjs discover --project <dir> [--scope code,asset,inspiration] [--apply]
+  yah.mjs run --project <dir> [--until <stage>] [--apply]
+  yah.mjs resume --project <dir> [--until <stage>] [--apply]
+  yah.mjs stage <start|complete|block|reset> --project <dir> --stage <stage> [--note <text>]
   yah.mjs serve --project <dir> [--surface site|lab|cases] [--port 4173]
   yah.mjs prepare-deploy --project <dir> [--lab-command <cmd>] [--lab-output <dir>]
+  yah.mjs source --project <dir> --kind repository --source <url> --path <relative-path> [options]
+  yah.mjs source --project <dir> --no-match --scope code --note <summary> [--complete]
+  yah.mjs collection sync --project <dir> [--apply]
   yah.mjs catalog --project <dir> [classification options] [--github] [--apply]
+  yah.mjs index [--root <dir>] [--out <file>] [--json]
+  yah.mjs search <query> [--root <dir>] [catalog filters] [--json]
+  yah.mjs export --project <dir> --format sune-library [--out <file> --apply]
+  yah.mjs migrate --project <dir> [--apply]
   yah.mjs validate --project <dir> [--strict] [--write]
   yah.mjs record --project <dir> --name <slug> [--format mp4|webm] [--promote]
   yah.mjs finalize --project <dir> [--apply]
@@ -33,13 +44,31 @@ if (!command || command === "--help" || command === "-h") {
 let script = "";
 let forwarded = args;
 if (command === "init") script = path.join(scripts, "init-clone.mjs");
+else if (command === "discover") script = path.join(scripts, "discover-project.mjs");
+else if (command === "run" || command === "resume") script = path.join(scripts, "run-pipeline.mjs");
 else if (command === "status") {
   script = path.join(scripts, "pipeline.mjs");
   forwarded = ["status", ...args];
 }
+else if (command === "stage") script = path.join(scripts, "pipeline.mjs");
 else if (command === "size") script = path.join(scripts, "project-size.mjs");
 else if (command === "clean") script = path.join(scripts, "cleanup-project.mjs");
+else if (command === "source") script = path.join(scripts, "source-provenance.mjs");
+else if (command === "collection") {
+  if (args[0] !== "sync") {
+    console.error("collection requires the subcommand: sync");
+    process.exit(1);
+  }
+  script = path.join(scripts, "sync-collection.mjs");
+  forwarded = args.slice(1);
+}
 else if (command === "catalog") script = path.join(scripts, "catalog-project.mjs");
+else if (command === "index" || command === "search") {
+  script = path.join(scripts, "catalog-workspace.mjs");
+  forwarded = [command, ...args];
+}
+else if (command === "export") script = path.join(scripts, "export-library-card.mjs");
+else if (command === "migrate") script = path.join(scripts, "migrate-project.mjs");
 else if (command === "validate") script = path.join(scripts, "validate-deliverables.mjs");
 else if (command === "record") script = path.join(scripts, "record-motion.mjs");
 else if (command === "finalize") script = path.join(scripts, "finalize-project.mjs");

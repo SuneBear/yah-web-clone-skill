@@ -36,6 +36,12 @@ try {
     "--capability", "interactive 3d,gpu-simulation",
     "--visual-style", "underwater,organic motion",
     "--subject", "coral,marine-life",
+    "--artifact", "hero,brand site",
+    "--asset-type", "3d-model,texture",
+    "--industry", "technology",
+    "--palette", "dark,blue",
+    "--platform", "web",
+    "--builder", "custom",
     "--keywords", "水下珊瑚,海洋生物,GPU 动画",
   ];
   const dryRun = run(options);
@@ -48,10 +54,16 @@ try {
   const state = JSON.parse(fs.readFileSync(path.join(project, ".clone", "project.json")));
   assert.deepEqual(state.catalog.tags.technology, ["three-js", "webgl2", "glsl"]);
   assert.deepEqual(state.catalog.tags.capability, ["interactive-3d", "gpu-simulation"]);
+  assert.equal(state.catalog.schemaVersion, 2);
+  assert.deepEqual(state.catalog.facets.artifact, ["hero", "brand-site"]);
+  assert.deepEqual(state.catalog.facets.assetType, ["3d-model", "texture"]);
+  assert.deepEqual(state.catalog.facets.palette, ["dark", "blue"]);
   assert.deepEqual(state.catalog.keywords, ["水下珊瑚", "海洋生物", "GPU 动画"]);
   const readme = fs.readFileSync(path.join(project, "README.md"), "utf8");
   assert.equal((readme.match(/yah-catalog:start/g) || []).length, 1);
   assert.match(readme, /## 分类/);
+  assert.match(readme, /形态：`hero`、`brand-site`/);
+  assert.match(readme, /素材：`3d-model`、`texture`/);
   assert.match(readme, /关键词：水下珊瑚、海洋生物、GPU 动画/);
 
   const invalid = run(["--project", project, "--technology", "yah-web-clone"]);
@@ -78,6 +90,17 @@ try {
     "underwater", "organic-motion", "coral", "marine-life",
   ]);
 
+  const facetsOnly = run([
+    "--project", project,
+    "--technology", "", "--capability", "", "--visual-style", "", "--subject", "",
+    "--artifact", "hero", "--asset-type", "3d-model", "--palette", "dark", "--platform", "web",
+    "--keywords", "珊瑚模型,深色首屏", "--apply",
+  ]);
+  assert.equal(facetsOnly.status, 0, facetsOnly.stderr || facetsOnly.stdout);
+  const facetsOnlyState = JSON.parse(fs.readFileSync(path.join(project, ".clone", "project.json")));
+  assert.deepEqual(facetsOnlyState.catalog.tags.technology, []);
+  assert.deepEqual(facetsOnlyState.catalog.facets.assetType, ["3d-model"]);
+
   state.mode = "collection";
   state.collection = {
     schemaVersion: 1,
@@ -89,6 +112,17 @@ try {
       url: "https://example.com/sunlit",
       treatment: "effect",
       status: "analyzed",
+      provider: "supahero",
+      sourcePage: "https://supahero.io/example",
+      assets: [{
+        title: "Coral model reference",
+        type: "3d-model",
+        role: "reference",
+        url: "https://assets.example.com/coral.glb",
+        sourcePage: "https://assets.example.com/coral",
+        license: "CC-BY-4.0",
+        previewUrl: "https://assets.example.com/coral.webp",
+      }],
     }],
   };
   fs.writeFileSync(path.join(project, ".clone", "project.json"), `${JSON.stringify(state, null, 2)}\n`);
@@ -97,15 +131,31 @@ try {
     "--case", "sunlit",
     "--capability", "dappled light",
     "--subject", "sunlight",
+    "--artifact", "hero",
+    "--platform", "web",
     "--keywords", "树影,自然光",
     "--apply",
   ]);
   assert.equal(memberApplied.status, 0, memberApplied.stderr || memberApplied.stdout);
   const collectionState = JSON.parse(fs.readFileSync(path.join(project, ".clone", "project.json")));
   assert.deepEqual(collectionState.collection.members[0].catalog.tags.capability, ["dappled-light"]);
+  assert.deepEqual(collectionState.collection.members[0].catalog.facets.artifact, ["hero"]);
   assert.match(fs.readFileSync(path.join(project, "README.md"), "utf8"), /### 案例分类/);
   assert.match(fs.readFileSync(path.join(project, "README.md"), "utf8"), /`sunlit`/);
+  assert.match(fs.readFileSync(path.join(project, "README.md"), "utf8"), /supahero\.io\/example/);
+  const casesIndex = fs.readFileSync(path.join(project, "cases", "index.html"), "utf8");
+  assert.match(casesIndex, /supahero\.io\/example/);
+  assert.match(casesIndex, /assets\.example\.com\/coral\.webp/);
+  fs.writeFileSync(path.join(project, "cases", "index.html"), "<h1>stale</h1>");
+  const syncedCollection = spawnSync(process.execPath, [
+    path.join(skill, "scripts", "yah.mjs"),
+    "collection", "sync", "--project", project, "--apply",
+  ], { cwd: project, encoding: "utf8" });
+  assert.equal(syncedCollection.status, 0, syncedCollection.stderr || syncedCollection.stdout);
+  assert.match(fs.readFileSync(path.join(project, "cases", "index.html"), "utf8"), /supahero\.io\/example/);
 
+  const curated = run(["--project", project, "--github-topics", "dappled-light", "--apply"]);
+  assert.equal(curated.status, 0, curated.stderr || curated.stdout);
   const memberSynced = run(["--project", project, "--github", "--apply"], {
     PATH: `${fakeBin}:${process.env.PATH}`,
     YAH_TEST_GH_ARGS: ghArgs,
@@ -113,8 +163,7 @@ try {
   });
   assert.equal(memberSynced.status, 0, memberSynced.stderr || memberSynced.stdout);
   const collectionPayload = JSON.parse(fs.readFileSync(ghInput, "utf8"));
-  assert.ok(collectionPayload.names.includes("dappled-light"));
-  assert.ok(collectionPayload.names.includes("sunlight"));
+  assert.deepEqual(collectionPayload.names, ["dappled-light"]);
 
   console.log("catalog project and GitHub topic projection: OK");
 } finally {

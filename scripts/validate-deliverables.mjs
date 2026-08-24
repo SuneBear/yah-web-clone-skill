@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { projectCatalogProblems, projectCatalogTopics } from "./lib/catalog.mjs";
+import { renderCollectionIndex } from "./lib/collection-projection.mjs";
 import { readProjectConfig } from "./lib/project-state.mjs";
 
 function usage() {
@@ -43,6 +44,62 @@ function readText(file) {
 
 function hasHtml(root) {
   return walk(root).some((file) => file.toLowerCase().endsWith(".html"));
+}
+
+function isSafeRelative(value) {
+  return typeof value === "string"
+    && value.trim()
+    && !path.isAbsolute(value)
+    && !value.split(/[\\/]/).includes("..");
+}
+
+function validateSourceProvenance(project, config, evidence, add) {
+  const requiresDiscovery = (config.requiredStages || []).includes("source_discovery")
+    || Number.parseFloat(config.skillVersion || "0") >= 3.5;
+  if (!requiresDiscovery) return;
+  const relative = path.join(evidence, "source-provenance.json");
+  const file = path.join(project, relative);
+  if (!fs.existsSync(file)) {
+    add("error", "missing-source-provenance", "Record code discovery, including a bounded no-match result, before delivery.", relative);
+    return;
+  }
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (error) {
+    add("error", "invalid-source-provenance", error.message, relative);
+    return;
+  }
+  const sources = Array.isArray(data.sources) ? data.sources : [];
+  const searches = Array.isArray(data.searches) ? data.searches : [];
+  const legacyProvenance = Number(data.schemaVersion || 1) < 2;
+  if (!sources.length && !searches.length) {
+    add("error", "empty-source-provenance", "Source provenance needs an adopted source or a documented no-match search.", relative);
+  }
+  const codeDiscovery = sources.some((source) => source.kind !== "asset")
+    || searches.some((search) => search.scope === "code" && search.outcome === "not-found" && String(search.note || "").trim());
+  if (!codeDiscovery) {
+    add("error", "missing-code-discovery", "Asset or inspiration discovery does not replace the required code-source search.", relative);
+  }
+  const kinds = new Set(["repository", "github", "sourcemap", "deployment", "runtime", "asset"]);
+  const roles = new Set(["original", "replacement", "reference", "presentation"]);
+  for (const [index, source] of sources.entries()) {
+    const target = `${relative}#sources[${index}]`;
+    if (!kinds.has(source.kind)) add("error", "invalid-source-kind", `Unsupported source kind: ${source.kind || "<missing>"}.`, target);
+    const relationValid = ["exact", "partial"].includes(source.relation) || (legacyProvenance && !source.relation);
+    if (!source.source || !source.path || !relationValid || !["SOURCE", "PARTIAL"].includes(source.evidence)) {
+      add("error", "incomplete-source-record", "Each source needs source, path, relation, and evidence.", target);
+    }
+    if (source.kind === "asset") {
+      if (!roles.has(source.role)) add("error", "invalid-asset-role", "Asset provenance needs original, replacement, reference, or presentation role.", target);
+      if (source.role === "replacement" && source.relation !== "partial") add("error", "invalid-replacement-relation", "Replacement assets must be partial.", target);
+    }
+  }
+  for (const [index, search] of searches.entries()) {
+    if (!["code", "asset", "inspiration"].includes(search.scope) || search.outcome !== "not-found" || !String(search.note || "").trim()) {
+      add("error", "invalid-source-search", "No-match searches need scope, outcome=not-found, and a useful note.", `${relative}#searches[${index}]`);
+    }
+  }
 }
 
 function validate(project, config) {
@@ -170,6 +227,36 @@ function validate(project, config) {
       } catch {
         add("error", "invalid-member-url", `Collection member ${slug} needs an absolute URL.`, "clone.config.json#collection.members");
       }
+      if (member.provider && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(member.provider)) {
+        add("error", "invalid-member-provider", `Collection member ${slug} provider must be kebab-case.`, "clone.config.json#collection.members");
+      }
+      if (member.sourcePage) {
+        try {
+          new URL(member.sourcePage);
+        } catch {
+          add("error", "invalid-member-source-page", `Collection member ${slug} sourcePage needs an absolute URL.`, "clone.config.json#collection.members");
+        }
+      }
+      const assetTypes = new Set(["image", "video", "font", "icon", "3d-model", "texture", "audio", "other"]);
+      const assetRoles = new Set(["original", "replacement", "reference", "presentation"]);
+      for (const [assetIndex, asset] of (Array.isArray(member.assets) ? member.assets : []).entries()) {
+        const target = `clone.config.json#collection.members.${slug}.assets[${assetIndex}]`;
+        if (!String(asset.title || "").trim()) add("error", "missing-asset-title", `Collection member ${slug} asset needs a title.`, target);
+        if (!assetTypes.has(asset.type)) add("error", "invalid-asset-type", `Collection member ${slug} asset has unsupported type.`, target);
+        if (!assetRoles.has(asset.role)) add("error", "invalid-asset-role", `Collection member ${slug} asset has unsupported role.`, target);
+        if (!asset.url && !asset.sourcePage && !asset.localPath) add("error", "missing-asset-source", `Collection member ${slug} asset needs a URL, sourcePage, or localPath.`, target);
+        for (const field of ["url", "sourcePage"]) {
+          if (!asset[field]) continue;
+          try { new URL(asset[field]); } catch { add("error", "invalid-asset-url", `Collection member ${slug} asset ${field} needs an absolute URL.`, target); }
+        }
+        if (asset.localPath) {
+          if (!isSafeRelative(asset.localPath)) add("error", "invalid-asset-path", `Collection member ${slug} asset localPath must be project-relative.`, target);
+          else if (!fs.existsSync(path.join(project, asset.localPath))) add("error", "missing-asset-file", `Collection member ${slug} asset localPath does not exist.`, asset.localPath);
+        }
+        if (asset.previewUrl && !/^https?:\/\//i.test(asset.previewUrl) && !isSafeRelative(asset.previewUrl)) {
+          add("error", "invalid-asset-preview", `Collection member ${slug} asset previewUrl must be absolute or project-relative.`, target);
+        }
+      }
       if (!treatments.has(member.treatment)) {
         add("error", "invalid-member-treatment", `Collection member ${slug} must use reference-only, mirror, effect, or full.`, "clone.config.json#collection.members");
       }
@@ -216,7 +303,10 @@ function validate(project, config) {
     }
 
     const mediaFiles = walk(path.join(project, docs, "media")).filter((file) => /\.(?:avif|jpe?g|mp4|png|webm|webp)$/i.test(file));
-    if (!mediaFiles.length) add("error", "missing-media", "Keep a small set of referenced visual artifacts for the collection.", `${docs}/media`);
+    const needsLocalMedia = members.some((member) => member.treatment !== "reference-only");
+    if (needsLocalMedia && !mediaFiles.length) {
+      add("error", "missing-media", "Collections with mirrored or reproduced members need a small set of referenced visual evidence.", `${docs}/media`);
+    }
 
     if (existsDir(lab)) {
       const labFiles = walk(path.join(project, lab));
@@ -228,10 +318,15 @@ function validate(project, config) {
         add("error", "missing-experiment-source", "A collection Lab needs readable experiment source.", lab);
       }
     }
+    const collectionIndex = readText(path.join(project, cases, "index.html"));
+    if (collectionIndex && collectionIndex !== renderCollectionIndex(config)) {
+      add("warning", "collection-index-stale", "Run yah collection sync --apply so cases/index.html matches project Meta.", `${cases}/index.html`);
+    }
   }
 
   const evidenceFiles = walk(path.join(project, evidence));
   if (!evidenceFiles.length) add("error", "missing-evidence", "Keep minimal source or verification evidence.", evidence);
+  validateSourceProvenance(project, config, evidence, add);
 
   return {
     schemaVersion: 1,

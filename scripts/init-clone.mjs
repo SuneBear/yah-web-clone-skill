@@ -8,6 +8,7 @@ import {
   createProjectState,
   writeProjectState,
 } from "./lib/project-state.mjs";
+import { renderCollectionIndex, renderSourcesBlock } from "./lib/collection-projection.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillDir = path.dirname(scriptDir);
@@ -141,13 +142,7 @@ function readmeTemplate({ name, url, mode, effect, publishTargets, collection })
       : mode === "collection"
         ? "启动后 `/` 预览 Collection；存在 Lab 时从 `/__lab/` 访问。"
       : "启动后 `/` 预览本地镜像。";
-  const publishing = publishTargets.length
-    ? `计划发布：${publishTargets.join("、")}。`
-    : "GitHub 与部署未启用；本地验收后再决定是否发布。";
-
-  const sources = mode === "collection"
-    ? collection.members.map((member) => `- [${member.title}](${member.url}) · \`${member.treatment}\` · \`${member.status}\``).join("\n")
-    : `- 原站：${url || "待补"}`;
+  const sources = renderSourcesBlock({ mode, url, collection, publishTargets });
 
   return `# ${name}
 
@@ -156,7 +151,6 @@ function readmeTemplate({ name, url, mode, effect, publishTargets, collection })
 ## 来源与状态
 
 ${sources}
-- ${publishing}
 
 ## 本地预览
 
@@ -192,6 +186,10 @@ function analysisTemplate({ name, url, mode, effect }) {
 ## 一句话原理
 
 待补。
+
+## 源码发现
+
+记录克隆前检索过的官方仓库、作者仓库、部署仓库、CodePen/CodeSandbox 与相关实现；说明候选是否与目标精确对应、采用或排除理由。revision、license 与 checksum 有证据时记录，内部来源无需为了流程补填。不要把相似模板写成原站源码。
 
 ## 来源与证据
 
@@ -245,30 +243,6 @@ function labIndex({ name, effect }) {
 `;
 }
 
-function collectionIndex({ name, members }) {
-  const items = members.map((member) => `      <li><a href="${member.url}">${member.title}</a><span>${member.treatment}</span></li>`).join("\n");
-  return `<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${name} · Collection</title>
-  <style>
-    body { margin: 0; color: #24221e; background: #f1eee6; font: 16px/1.6 Georgia, serif; }
-    main { width: min(860px, calc(100% - 40px)); margin: 10vh auto; }
-    h1 { font-size: clamp(2.5rem, 8vw, 6rem); line-height: .9; }
-    ol { padding: 0; list-style: none; border-top: 1px solid #9a9589; }
-    li { display: flex; justify-content: space-between; gap: 24px; padding: 16px 0; border-bottom: 1px solid #9a9589; }
-    a { color: inherit; } span { color: #6d685e; font: 12px/1.6 ui-monospace, monospace; }
-  </style>
-</head>
-<body><main><p>Yah Web Clone · Collection</p><h1>${name}</h1><ol>
-${items}
-  </ol></main></body>
-</html>
-`;
-}
-
 function comparisonTemplate(members) {
   const rows = members.map((member) => `| ${member.title} | ${member.treatment} | 待补 | 待补 | 待补 |`).join("\n");
   return `# 横向比较
@@ -295,10 +269,6 @@ function synthesisTemplate() {
 待补。
 
 ## 可迁移方法
-
-待补。
-
-## 设计 DNA
 
 待补。
 `;
@@ -370,7 +340,7 @@ try {
     fs.mkdirSync(path.join(project, "cases"), { recursive: true });
     fs.mkdirSync(path.join(project, "docs", "cases"), { recursive: true });
     fs.mkdirSync(path.join(project, "docs", "media"), { recursive: true });
-    fs.writeFileSync(path.join(project, "cases", "index.html"), collectionIndex({ name, members: collection.members }));
+    fs.writeFileSync(path.join(project, "cases", "index.html"), renderCollectionIndex({ name, mode, collection }));
     fs.writeFileSync(path.join(project, "docs", "COMPARISON.md"), comparisonTemplate(collection.members));
     fs.writeFileSync(path.join(project, "docs", "SYNTHESIS.md"), synthesisTemplate());
     for (const member of collection.members) {

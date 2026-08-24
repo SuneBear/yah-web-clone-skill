@@ -25,6 +25,8 @@ try {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const state = JSON.parse(fs.readFileSync(path.join(fixture, "default-mode-clone", ".clone", "project.json")));
   assert.equal(state.mode, "full");
+  assert.equal(state.requiredStages[0], "source_discovery");
+  assert.equal(state.stages.source_discovery.status, "pending");
   assert.ok(fs.existsSync(path.join(fixture, "default-mode-clone", "site")));
   assert.ok(fs.existsSync(path.join(fixture, "default-mode-clone", "lab")));
   assert.ok(fs.existsSync(path.join(fixture, "default-mode-clone", "docs")));
@@ -46,6 +48,7 @@ try {
   const collectionRoot = path.join(fixture, "auto-collection");
   const collectionState = JSON.parse(fs.readFileSync(path.join(collectionRoot, ".clone", "project.json")));
   assert.equal(collectionState.mode, "collection");
+  assert.equal(collectionState.requiredStages[0], "source_discovery");
   assert.equal(collectionState.collection.members.length, 2);
   assert.ok(fs.existsSync(path.join(collectionRoot, "cases", "index.html")));
   assert.ok(!fs.existsSync(path.join(collectionRoot, "site")));

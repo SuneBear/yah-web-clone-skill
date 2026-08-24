@@ -26,7 +26,7 @@ function usage() {
 
   node scripts/dna-scaffold.mjs --out <design-dna.json> [--recon <label-recon.json>] [--name <站名>]
 
-只在 \`adapt\` 模式使用。默认的 \`mirror\` 模式不需要 DNA（可运行源码与运行证据才是真相）。
+只在用户明确要求提取设计系统、制作风格变体或跨案例综合时使用。默认复刻不需要 DNA（可运行源码与运行证据才是真相）。
 schema 与字段含义见 references/design-dna.md。`);
 }
 

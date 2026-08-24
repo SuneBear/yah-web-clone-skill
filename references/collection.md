@@ -27,27 +27,46 @@
         "slug": "sunlit",
         "title": "Sunlit",
         "url": "https://example.com",
-        "treatment": "effect",
+        "provider": "lapa-ninja",
+        "sourcePage": "https://www.lapa.ninja/post/example",
+        "treatment": "reference-only",
         "status": "analyzed",
-        "route": "/sunlit/",
-        "cloneRepo": null,
         "catalog": {
-          "schemaVersion": 1,
+          "schemaVersion": 2,
           "tags": {
             "technology": ["webgl"],
             "capability": ["dappled-light"],
             "visualStyle": ["organic-motion"],
             "subject": ["sunlight"]
           },
+          "facets": {
+            "artifact": ["landing-page"],
+            "assetType": ["image", "font"],
+            "industry": ["travel"],
+            "palette": ["warm"],
+            "platform": ["web"],
+            "builder": ["custom"]
+          },
           "keywords": ["树影", "自然光"]
-        }
+        },
+        "assets": [
+          {
+            "title": "Sunlight texture reference",
+            "type": "texture",
+            "role": "reference",
+            "sourcePage": "https://assets.example.com/sunlight",
+            "previewUrl": "https://assets.example.com/sunlight.webp"
+          }
+        ]
       }
     ]
   }
 }
 ```
 
-成员 `slug` 必须唯一且稳定。`status` 可使用 `pending`、`captured`、`analyzed`、`implemented`、`verified` 或 `blocked`。不要把过程绝对路径、临时截图清单或完整网络日志写进稳定配置。
+成员 `slug` 必须唯一且稳定。`status` 可使用 `pending`、`captured`、`analyzed`、`implemented`、`verified` 或 `blocked`。`provider` 与 `sourcePage` 只在来源来自 Inspiration gallery 时填写：`url` 始终指原站，`sourcePage` 指 provider 的详情/预览页。
+
+`assets` 只登记对研究、实现或呈现有明确作用的素材。`type` 使用 `image`、`video`、`font`、`icon`、`3d-model`、`texture`、`audio` 或 `other`；`role` 使用 `original`、`replacement`、`reference` 或 `presentation`。内部素材可省略 license；外部素材在复制或发布前核实边界。`localPath` 必须是项目相对路径且真实存在；`previewUrl` 只有在允许呈现时填写。不要把过程绝对路径、临时截图清单或完整网络日志写进稳定配置。
 
 非 `reference-only` 成员用 `route` 指向 Collection 内的可运行入口，或用 `cloneRepo` 指向独立 clone 仓库。重型 `full` 优先使用 `cloneRepo`；不要同时复制一份完整镜像又链接独立仓库。
 
@@ -62,7 +81,7 @@
 ├── docs/
 │   ├── cases/<slug>.md     # 逐项观察、证据与集合关系
 │   ├── COMPARISON.md       # 横向矩阵
-│   ├── SYNTHESIS.md        # 共性、差异、反例、设计 DNA
+│   ├── SYNTHESIS.md        # 共性、差异、反例与可迁移方法
 │   └── media/              # 少量被文档引用的精选媒体
 └── clone.config.json
 ```
@@ -75,7 +94,7 @@
 2. 为每个成员选择 treatment，并记录它要回答的问题，而不是对所有来源执行相同重量的抓取。
 3. 先完成逐项证据和分析，再写横向矩阵；从矩阵提炼共性、差异、反例和可迁移方法。
 4. 只有综合结论需要运行验证时创建 Lab；默认参数对应有证据的案例，派生参数明确标记为 variation。
-5. 分别执行项目级和成员级 Catalog，运行严格验收、体积检查、清理和 finalize。
+5. 分别执行项目级和成员级 Catalog，再运行 `yah collection sync --apply`，从 Meta 重建 README 来源区、provider/原站链接与素材卡片；随后运行严格验收、体积检查、清理和 finalize。纯 `reference-only` Collection 不强制自制截图或录屏；有本地镜像或实现时才保留相应视觉证据。
 
 成员分类示例：
 
@@ -91,5 +110,6 @@ node "$YAH" catalog --project "$YAH_PROJECT" --case sunlit \
 - `reference-only` 不声称 1:1，只验证来源、观察和结论链路。
 - `mirror`、`effect`、`full` 继承对应模式的忠实度门槛。
 - Collection 首页必须能直接运行并列出所有成员；成员分析、比较和综合文档不得残留占位符。
-- 集合级与成员级标签必须可从稳定配置重新生成 README 分类和 GitHub Topics。
+- Collection 首页与 README 来源区必须能由稳定配置重新生成，不手工维护 provider、原站或素材链接。
+- 集合级与成员级 Catalog 都保存在稳定配置；GitHub Topics 只使用项目级或显式精选的核心标签。
 - Collection Lab 如果存在，必须有可读源码，可静态运行或提供 `build:lab`；构建型 Lab 先构建再从 `/__lab/` 本地预览，并进入同一路径的部署验收。

@@ -54,7 +54,16 @@ function prepareMode(mode) {
   const project = initialized.stdout.trim().split(/\r?\n/).at(-1);
 
   fs.mkdirSync(path.join(project, ".clone", "evidence"), { recursive: true });
-  fs.writeFileSync(path.join(project, ".clone", "evidence", "source.json"), '{"level":"SOURCE"}\n');
+  fs.writeFileSync(path.join(project, ".clone", "evidence", "source-provenance.json"), `${JSON.stringify({
+    schemaVersion: 3,
+    sources: [],
+    searches: [{
+      scope: "code",
+      outcome: "not-found",
+      note: "Checked domain, title, credits, GitHub, CodePen, and npm for the fixture.",
+      recordedAt: new Date().toISOString(),
+    }],
+  }, null, 2)}\n`);
   if (["full", "mirror"].includes(mode)) fs.writeFileSync(path.join(project, "site", "index.html"), `<h1>${mode}</h1>`);
   if (["full", "effect"].includes(mode)) {
     const effect = path.join(project, "lab", "effects", "demo");
@@ -74,7 +83,6 @@ function prepareMode(mode) {
     for (const slug of ["example-com", "example-org"]) {
       fs.writeFileSync(path.join(project, "docs", "cases", `${slug}.md`), `# ${slug}\n\n## 来源与证据\nSOURCE：已验证。\n\n## 与集合的关系\n支持光照共性，并记录差异与反例。\n`);
     }
-    fs.writeFileSync(path.join(project, "docs", "media", "demo.png"), "fixture");
   }
   const cataloged = run(path.join(skill, "scripts", "catalog-project.mjs"), [
     "--project", project,
@@ -108,7 +116,7 @@ try {
     const finalized = run(path.join(skill, "scripts", "finalize-project.mjs"), ["--project", project, "--apply"], project);
     assert.equal(finalized.status, 0, `${mode}: ${finalized.stderr || finalized.stdout}`);
     assert.ok(!fs.existsSync(path.join(project, ".clone")), `${mode}: .clone should be removed`);
-    assert.ok(fs.existsSync(path.join(project, "docs", "evidence", "source.json")));
+    assert.ok(fs.existsSync(path.join(project, "docs", "evidence", "source-provenance.json")));
     assert.ok(fs.existsSync(path.join(project, "dist", "index.html")));
     if (mode === "full") assert.ok(fs.existsSync(path.join(project, "dist", "__lab", "index.html")));
     if (mode === "mirror") assert.ok(!fs.existsSync(path.join(project, "dist", "__lab")));

@@ -107,7 +107,9 @@ SOURCE：见 .clone/evidence/verification.json。
   assert.equal(config.mode, "full");
   assert.equal(config.paths.evidence, "docs/evidence");
   assert.equal(config.paths.publishOutput, "dist");
+  assert.equal(config.catalog.schemaVersion, 2);
   assert.deepEqual(config.catalog.tags.technology, ["webgl"]);
+  assert.deepEqual(config.catalog.facets.artifact, []);
   assert.ok(!configText.includes(project));
   const pkg = JSON.parse(fs.readFileSync(path.join(project, "package.json"), "utf8"));
   assert.equal(pkg.scripts.dev, "node scripts/serve.mjs");

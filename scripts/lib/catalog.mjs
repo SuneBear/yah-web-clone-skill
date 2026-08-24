@@ -5,11 +5,26 @@ export const CATALOG_TAG_FIELDS = Object.freeze([
   "subject",
 ]);
 
+export const CATALOG_FACET_FIELDS = Object.freeze([
+  "artifact",
+  "assetType",
+  "industry",
+  "palette",
+  "platform",
+  "builder",
+]);
+
 export const CATALOG_LABELS = Object.freeze({
   technology: "技术",
   capability: "能力",
   visualStyle: "视觉",
   subject: "主题",
+  artifact: "形态",
+  assetType: "素材",
+  industry: "行业",
+  palette: "色彩",
+  platform: "平台",
+  builder: "建站工具",
 });
 
 const WORKFLOW_TOPICS = new Set([
@@ -49,8 +64,12 @@ export function normalizeCatalog(input = {}) {
   for (const field of CATALOG_TAG_FIELDS) {
     tags[field] = unique(values(input.tags?.[field]).map(normalizeTopic).filter(Boolean));
   }
+  const facets = {};
+  for (const field of CATALOG_FACET_FIELDS) {
+    facets[field] = unique(values(input.facets?.[field]).map(normalizeTopic).filter(Boolean));
+  }
   const keywords = unique(values(input.keywords).map((value) => String(value).trim()).filter(Boolean));
-  return { schemaVersion: 1, tags, keywords };
+  return { schemaVersion: 2, tags, facets, keywords };
 }
 
 export function catalogTopics(catalog) {
@@ -59,25 +78,31 @@ export function catalogTopics(catalog) {
 }
 
 export function catalogHasContent(catalog) {
-  return catalogTopics(catalog).length > 0;
+  const normalized = normalizeCatalog(catalog);
+  return catalogTopics(normalized).length > 0
+    || CATALOG_FACET_FIELDS.some((field) => normalized.facets[field].length > 0)
+    || normalized.keywords.length > 0;
+}
+
+export function projectCatalogHasContent(config = {}) {
+  if (catalogHasContent(config.catalog)) return true;
+  return config.mode === "collection"
+    && (config.collection?.members || []).some((member) => catalogHasContent(member.catalog));
 }
 
 export function catalogProblems(catalog) {
   const topics = catalogTopics(catalog);
   const problems = [];
-  if (!topics.length) problems.push("至少填写一个内容标签");
-  if (topics.length > 20) problems.push(`GitHub Topics 最多 20 个，当前为 ${topics.length} 个`);
+  if (!catalogHasContent(catalog)) problems.push("至少填写一个内容标签、筛选 facet 或关键词");
   const workflow = topics.filter((topic) => WORKFLOW_TOPICS.has(topic) || topic.endsWith("-clone"));
   if (workflow.length) problems.push(`不要使用 clone/mode/workflow 系统标签：${workflow.join("、")}`);
   return problems;
 }
 
 export function projectCatalogTopics(config = {}) {
-  const catalogs = [config.catalog];
-  if (config.mode === "collection" && Array.isArray(config.collection?.members)) {
-    catalogs.push(...config.collection.members.map((member) => member.catalog));
-  }
-  return unique(catalogs.flatMap((catalog) => catalogTopics(catalog)));
+  const selected = unique(values(config.delivery?.githubTopics).map(normalizeTopic).filter(Boolean));
+  if (selected.length) return selected;
+  return catalogTopics(config.catalog);
 }
 
 export function projectCatalogProblems(config = {}) {
@@ -89,7 +114,14 @@ export function projectCatalogProblems(config = {}) {
       }
     }
   }
+  const availableTopics = unique([
+    ...catalogTopics(config.catalog),
+    ...((config.collection?.members || []).flatMap((member) => catalogTopics(member.catalog))),
+  ]);
+  const selected = unique(values(config.delivery?.githubTopics).map(normalizeTopic).filter(Boolean));
+  const unknown = selected.filter((topic) => !availableTopics.includes(topic));
+  if (unknown.length) problems.push(`精选 GitHub Topics 必须来自项目或案例核心标签：${unknown.join("、")}`);
   const topics = projectCatalogTopics(config);
-  if (topics.length > 20) problems.push(`项目与案例汇总后的 GitHub Topics 最多 20 个，当前为 ${topics.length} 个`);
+  if (topics.length > 20) problems.push(`精选 GitHub Topics 最多 20 个，当前为 ${topics.length} 个`);
   return unique(problems);
 }

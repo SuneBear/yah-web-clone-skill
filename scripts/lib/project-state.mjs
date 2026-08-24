@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const PROJECT_STAGES = Object.freeze([
+  "source_discovery",
   "mirror",
   "capture",
   "effect_extract",
@@ -16,10 +17,10 @@ export const PROJECT_STAGES = Object.freeze([
 export const PROJECT_MODES = Object.freeze(["full", "mirror", "effect", "collection"]);
 
 const LOCAL_STAGES = Object.freeze({
-  full: ["mirror", "capture", "effect_extract", "local_verify", "docs"],
-  mirror: ["mirror", "local_verify"],
-  effect: ["capture", "effect_extract", "local_verify", "docs"],
-  collection: ["capture", "collection_analyze", "local_verify", "docs"],
+  full: ["source_discovery", "mirror", "capture", "effect_extract", "local_verify", "docs"],
+  mirror: ["source_discovery", "mirror", "local_verify"],
+  effect: ["source_discovery", "capture", "effect_extract", "local_verify", "docs"],
+  collection: ["source_discovery", "capture", "collection_analyze", "local_verify", "docs"],
 });
 
 function normalizePublishTargets(input) {
@@ -82,7 +83,7 @@ export function createProjectState({
   return {
     schemaVersion: 3,
     skill: "yah-web-clone",
-    skillVersion: "3.4",
+    skillVersion: "3.7",
     project: path.resolve(project),
     name,
     url,
