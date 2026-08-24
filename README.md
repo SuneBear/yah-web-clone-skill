@@ -23,7 +23,7 @@ Yah Web Clone 是一套面向创意网站、WebGL、Canvas、Three.js、Shader�
 - 采集页面、路由、资源、网络、交互和视觉差异证据，无法达到目标忠实度时明确报告缺口。
 - 为效果提供原版基线、可选 GUI 和有辨识度的 Preset。
 - 等待页面真正加载完成后录制 MP4 或 WebM，并裁掉 Loading 前摇。
-- 以 `clone.config.json.catalog` 为分类源，保存 tags 与形态/素材/行业/色彩/平台/建站工具 facets，投影 README 分类区并同步精选 GitHub Topics，方便任意全文索引或可选 Library 检索。
+- 以 `clone.config.json.catalog` 为分类源，保存 tags 与形态/素材/行业/色彩/平台/建站工具 facets；README 只显示不超过 8 个检索词并链接完整配置，GitHub 只同步精选 Topics。
 - `yah index/search` 即时扫描 workspace Meta，不创建长期数据库；需要外部资料库时再使用对应的可选集成。
 - `yah run/resume` 执行安全内置步骤和项目声明的 `yah:<stage>` npm hooks，遇到来源采用、视觉判断或文档结论时保存状态并停在 review gate。
 - 在最终交付前提升长期证据、清理临时内容并删除 `.clone/` 过程目录。
@@ -200,7 +200,7 @@ node "$YAH_WEB_CLONE_DIR/scripts/yah.mjs" catalog \
   --project ./example-clone --github --apply
 ```
 
-Collection 的成员标签使用 `--case <slug>`；README 会显示成员分类。GitHub Topics 默认只使用项目级核心 tags，需要成员标签时用 `--github-topics` 精选不超过 20 个：
+Collection 的成员标签使用 `--case <slug>`；完整成员分类保存在 `clone.config.json`，README 只保留紧凑摘要。GitHub Topics 默认只使用项目级核心 tags，需要成员标签时用 `--github-topics` 精选不超过 20 个：
 
 ```bash
 node "$YAH_WEB_CLONE_DIR/scripts/yah.mjs" catalog \

@@ -61,10 +61,10 @@ try {
   assert.deepEqual(state.catalog.keywords, ["水下珊瑚", "海洋生物", "GPU 动画"]);
   const readme = fs.readFileSync(path.join(project, "README.md"), "utf8");
   assert.equal((readme.match(/yah-catalog:start/g) || []).length, 1);
-  assert.match(readme, /## 分类/);
-  assert.match(readme, /形态：`hero`、`brand-site`/);
-  assert.match(readme, /素材：`3d-model`、`texture`/);
-  assert.match(readme, /关键词：水下珊瑚、海洋生物、GPU 动画/);
+  assert.match(readme, /## 检索摘要/);
+  assert.match(readme, /`three-js` · `webgl2`/);
+  assert.match(readme, /完整 tags、facets 与关键词见 \[`clone\.config\.json`\]/);
+  assert.doesNotMatch(readme, /形态：|素材：|关键词：/);
 
   const invalid = run(["--project", project, "--technology", "yah-web-clone"]);
   assert.equal(invalid.status, 1);
@@ -100,6 +100,9 @@ try {
   const facetsOnlyState = JSON.parse(fs.readFileSync(path.join(project, ".clone", "project.json")));
   assert.deepEqual(facetsOnlyState.catalog.tags.technology, []);
   assert.deepEqual(facetsOnlyState.catalog.facets.assetType, ["3d-model"]);
+  const facetsOnlyReadme = fs.readFileSync(path.join(project, "README.md"), "utf8");
+  assert.match(facetsOnlyReadme, /`hero`/);
+  assert.match(facetsOnlyReadme, /`3d-model`/);
 
   state.mode = "collection";
   state.collection = {
@@ -140,9 +143,10 @@ try {
   const collectionState = JSON.parse(fs.readFileSync(path.join(project, ".clone", "project.json")));
   assert.deepEqual(collectionState.collection.members[0].catalog.tags.capability, ["dappled-light"]);
   assert.deepEqual(collectionState.collection.members[0].catalog.facets.artifact, ["hero"]);
-  assert.match(fs.readFileSync(path.join(project, "README.md"), "utf8"), /### 案例分类/);
-  assert.match(fs.readFileSync(path.join(project, "README.md"), "utf8"), /`sunlit`/);
-  assert.match(fs.readFileSync(path.join(project, "README.md"), "utf8"), /supahero\.io\/example/);
+  const collectionReadme = fs.readFileSync(path.join(project, "README.md"), "utf8");
+  assert.match(collectionReadme, /## 参考来源/);
+  assert.match(collectionReadme, /supahero\.io\/example/);
+  assert.doesNotMatch(collectionReadme, /### 案例分类|计划发布/);
   const casesIndex = fs.readFileSync(path.join(project, "cases", "index.html"), "utf8");
   assert.match(casesIndex, /supahero\.io\/example/);
   assert.match(casesIndex, /assets\.example\.com\/coral\.webp/);

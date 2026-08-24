@@ -32,6 +32,8 @@ try {
   assert.ok(fs.existsSync(path.join(fixture, "default-mode-clone", "docs")));
   const readme = fs.readFileSync(path.join(fixture, "default-mode-clone", "README.md"), "utf8");
   assert.doesNotMatch(readme, /授权/);
+  assert.doesNotMatch(readme, /来源与状态|计划发布/);
+  assert.match(readme, /\[原站\]\(https:\/\/example\.com\/?\)/);
 
   const collectionResult = spawnSync(process.execPath, [
     path.join(skill, "scripts", "init-clone.mjs"),
@@ -52,6 +54,9 @@ try {
   assert.equal(collectionState.collection.members.length, 2);
   assert.ok(fs.existsSync(path.join(collectionRoot, "cases", "index.html")));
   assert.ok(!fs.existsSync(path.join(collectionRoot, "site")));
+  const collectionReadme = fs.readFileSync(path.join(collectionRoot, "README.md"), "utf8");
+  assert.match(collectionReadme, /## 参考来源/);
+  assert.doesNotMatch(collectionReadme, /计划发布/);
   console.log("default mode case: OK");
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true });

@@ -6,9 +6,7 @@ import {
   CATALOG_FACET_FIELDS,
   CATALOG_LABELS,
   CATALOG_TAG_FIELDS,
-  catalogHasContent,
   catalogProblems,
-  catalogTopics,
   normalizeCatalog,
   normalizeTopic,
   projectCatalogHasContent,
@@ -78,41 +76,34 @@ function parseArgs(argv) {
   return out;
 }
 
-function renderCatalogLines(catalog) {
-  const lines = [];
-  for (const field of CATALOG_TAG_FIELDS) {
-    const tags = catalog.tags[field];
-    if (tags.length) lines.push(`- ${CATALOG_LABELS[field]}：${tags.map((tag) => `\`${tag}\``).join("、")}`);
+function addUnique(target, values, limit = 8) {
+  for (const value of values) {
+    if (!target.includes(value)) target.push(value);
+    if (target.length >= limit) break;
   }
-  for (const field of CATALOG_FACET_FIELDS) {
-    const values = catalog.facets[field];
-    if (values.length) lines.push(`- ${CATALOG_LABELS[field]}：${values.map((value) => `\`${value}\``).join("、")}`);
+}
+
+function catalogSummary(config) {
+  const catalogs = [normalizeCatalog(config.catalog)];
+  if (config.mode === "collection") {
+    catalogs.push(...(config.collection?.members || []).map((member) => normalizeCatalog(member.catalog)));
   }
-  if (catalog.keywords.length) lines.push(`- 关键词：${catalog.keywords.join("、")}`);
-  return lines;
+  const summary = [];
+  for (const catalog of catalogs) {
+    for (const field of CATALOG_TAG_FIELDS) addUnique(summary, catalog.tags[field].slice(0, 2));
+  }
+  for (const catalog of catalogs) {
+    for (const field of CATALOG_FACET_FIELDS) addUnique(summary, catalog.facets[field].slice(0, 1));
+    addUnique(summary, catalog.keywords.slice(0, 2));
+  }
+  return summary.slice(0, 8);
 }
 
 function renderBlock(config) {
-  const catalog = normalizeCatalog(config.catalog);
-  const lines = [START, "## 分类", ""];
-  lines.push(...renderCatalogLines(catalog));
-  if (config.mode === "collection") {
-    const tagged = (config.collection?.members || [])
-      .map((member) => ({ ...member, catalog: normalizeCatalog(member.catalog) }))
-      .filter((member) => catalogHasContent(member.catalog));
-    if (tagged.length) {
-      lines.push("", "### 案例分类", "");
-      for (const member of tagged) {
-        const topics = catalogTopics(member.catalog).map((topic) => `\`${topic}\``).join("、");
-        const facets = CATALOG_FACET_FIELDS
-          .flatMap((field) => member.catalog.facets[field])
-          .map((value) => `\`${value}\``)
-          .join("、");
-        const details = [topics, facets, ...member.catalog.keywords].filter(Boolean).join("；");
-        lines.push(`- \`${member.slug}\`：${details}`);
-      }
-    }
-  }
+  const summary = catalogSummary(config);
+  const lines = [START, "## 检索摘要", ""];
+  if (summary.length) lines.push(summary.map((value) => `\`${value}\``).join(" · "), "");
+  lines.push("完整 tags、facets 与关键词见 [`clone.config.json`](./clone.config.json)。");
   lines.push(END);
   return lines.join("\n");
 }

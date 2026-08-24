@@ -4,7 +4,7 @@ import path from "node:path";
 import { normalizeCatalog } from "./lib/catalog.mjs";
 import { PROJECT_STAGES, readProjectConfig, stagesForMode } from "./lib/project-state.mjs";
 
-const TARGET_VERSION = "3.7";
+const TARGET_VERSION = "3.8";
 
 function usage() {
   console.log(`Usage:

@@ -91,7 +91,7 @@ try {
   const migration = run(["migrate", "--project", project, "--apply"]);
   assert.equal(migration.status, 0, migration.stderr || migration.stdout);
   const migrated = JSON.parse(fs.readFileSync(path.join(project, ".clone", "project.json")));
-  assert.equal(migrated.skillVersion, "3.7");
+  assert.equal(migrated.skillVersion, "3.8");
   assert.ok(migrated.stages.capture);
   assert.equal(migrated.catalog.schemaVersion, 2);
 

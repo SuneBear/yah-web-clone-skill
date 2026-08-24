@@ -127,7 +127,7 @@ function collectionMembers(urls) {
   });
 }
 
-function readmeTemplate({ name, url, mode, effect, publishTargets, collection }) {
+function readmeTemplate({ name, url, mode, effect, collection }) {
   const surfaces = [];
   if (["full", "mirror"].includes(mode)) surfaces.push("- `site/`：保持原站行为的可运行镜像，不放调试 GUI 或教学改写。");
   if (mode === "collection") surfaces.push("- `cases/`：Collection 列表与可运行成员入口；不堆放无筛选的完整抓取。");
@@ -142,14 +142,14 @@ function readmeTemplate({ name, url, mode, effect, publishTargets, collection })
       : mode === "collection"
         ? "启动后 `/` 预览 Collection；存在 Lab 时从 `/__lab/` 访问。"
       : "启动后 `/` 预览本地镜像。";
-  const sources = renderSourcesBlock({ mode, url, collection, publishTargets });
+  const origin = mode !== "collection" && url ? ` · [原站](${url})` : "";
+  const sources = mode === "collection"
+    ? `\n## 参考来源\n\n${renderSourcesBlock({ mode, collection })}\n`
+    : "";
 
   return `# ${name}
 
-> Yah Web Clone v3 · ${modeLabel(mode)}${effect ? ` · ${effect}` : ""}
-
-## 来源与状态
-
+> Yah Web Clone v3 · ${modeLabel(mode)}${effect ? ` · ${effect}` : ""}${origin}
 ${sources}
 
 ## 本地预览
@@ -358,7 +358,7 @@ try {
   );
   fs.writeFileSync(
     path.join(project, "README.md"),
-    readmeTemplate({ name, url, mode, effect: args.effect, publishTargets, collection })
+    readmeTemplate({ name, url, mode, effect: args.effect, collection })
   );
   const packageScripts = {
     dev: "node .clone/serve.mjs",

@@ -94,7 +94,7 @@
 2. 为每个成员选择 treatment，并记录它要回答的问题，而不是对所有来源执行相同重量的抓取。
 3. 先完成逐项证据和分析，再写横向矩阵；从矩阵提炼共性、差异、反例和可迁移方法。
 4. 只有综合结论需要运行验证时创建 Lab；默认参数对应有证据的案例，派生参数明确标记为 variation。
-5. 分别执行项目级和成员级 Catalog，再运行 `yah collection sync --apply`，从 Meta 重建 README 来源区、provider/原站链接与素材卡片；随后运行严格验收、体积检查、清理和 finalize。纯 `reference-only` Collection 不强制自制截图或录屏；有本地镜像或实现时才保留相应视觉证据。
+5. 分别执行项目级和成员级 Catalog，再运行 `yah collection sync --apply`，从 Meta 重建 README 的紧凑参考来源列表，以及 Collection 页的 provider/原站链接与素材卡片；完整分类仍只保存在 `clone.config.json`。随后运行严格验收、体积检查、清理和 finalize。纯 `reference-only` Collection 不强制自制截图或录屏；有本地镜像或实现时才保留相应视觉证据。
 
 成员分类示例：
 

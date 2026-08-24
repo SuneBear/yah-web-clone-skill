@@ -1,6 +1,6 @@
 # 项目检索分类
 
-把 `clone.config.json.catalog` 作为项目分类 Source of Truth；Collection 成员使用 `collection.members[].catalog`。README 分类区与 GitHub Topics 都是可重新生成的投影；环境中存在 Library 索引时可继续消费 README，但 Yah 本身不依赖它。不要为相同字段再维护默认 `DESIGN.md`。
+把 `clone.config.json.catalog` 作为项目分类 Source of Truth；Collection 成员使用 `collection.members[].catalog`。README 的紧凑检索摘要与 GitHub Topics 都是可重新生成的投影；环境中存在 Library 索引时优先读取稳定配置，Yah 本身不依赖它。不要为相同字段再维护默认 `DESIGN.md`。
 
 ## 配置契约
 
@@ -39,7 +39,7 @@
 - `platform`：`web`、`mobile-web`、`ios`、`android`。
 - `builder`：`custom`、`framer`、`webflow`、`wordpress`、`shopify` 等；未知时不猜。
 
-`tags` 回答“项目中有什么内容或能力”，可投影到 GitHub Topics；`facets` 回答“用户想怎样筛选”，只进入 Meta、README 与 Library 索引。视觉叙述、设计原则与 token 不塞进 Catalog；确需详细表达时写进现有分析/综合文档，或按需生成 Design DNA。
+`tags` 回答“项目中有什么内容或能力”，可投影到 GitHub Topics；`facets` 回答“用户想怎样筛选”，完整值只进入 Meta 与外部索引。README 从 tags、facets、keywords 中精选不超过 8 个词作为检索摘要，并引导读者查看 `clone.config.json`。视觉叙述、设计原则与 token 不塞进 Catalog；确需详细表达时写进现有分析/综合文档，或按需生成 Design DNA。
 
 标签使用小写英文 kebab-case。优先使用生态中常见的规范词，如 `threejs`、`webgl`、`webgpu`、`glsl`、`scroll-animation`，不要制造含义相同的新拼法。未知值保持未知，不为了填满字段而猜测。
 
@@ -58,9 +58,9 @@ node "$YAH" catalog --project "$YAH_PROJECT" \
   --keywords "水下珊瑚,海洋生物,GPU 动画"
 ```
 
-默认只预览。加 `--apply` 后更新当前阶段的 `.clone/project.json` 或最终 `clone.config.json`，并生成 README 的受管分类区。未传入的字段保留原值；`--clear` 清空全部分类。
+默认只预览。加 `--apply` 后更新当前阶段的 `.clone/project.json` 或最终 `clone.config.json`，并生成 README 的受管检索摘要。未传入的字段保留原值；`--clear` 清空全部分类。
 
-Collection 成员传入 `--case <slug>`。每个成员使用同一套分类字段；只有 facets 或 keywords 的 reference-only 成员也有效，不要为了通过验证猜测技术。README 分类区保留成员与标签的对应关系。
+Collection 成员传入 `--case <slug>`。每个成员使用同一套分类字段；只有 facets 或 keywords 的 reference-only 成员也有效，不要为了通过验证猜测技术。完整成员级分类保存在 `clone.config.json`，README 不重复展开每个成员的全部标签。
 
 GitHub Topics 只能表达仓库级内容。默认只使用项目级核心 tags；成员标签不自动汇总，避免大型 Collection 超过 20。需要从成员标签中提升少数仓库主题时显式精选：
 

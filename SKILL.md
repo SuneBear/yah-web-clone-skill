@@ -89,7 +89,7 @@ node "$YAH" init nature-sketches --mode collection \
 
 ### 检索分类
 
-完成侦察后为每个项目填写内容分类，供 GitHub、README 全文索引与可选 Library 检索。把 `clone.config.json.catalog` 作为项目分类源；Collection 成员使用 `collection.members[].catalog`。核心 tags 记录技术、能力、视觉与主题；`facets` 记录形态、素材类型、行业、色彩、平台和建站工具；`keywords` 保留中文与自然语言。README 分类区和 GitHub Topics 由 `yah catalog` 投影，不要手工维护，也不要再复制一份默认 `DESIGN.md`。
+完成侦察后为每个项目填写内容分类，供 GitHub、README 全文索引与可选 Library 检索。把 `clone.config.json.catalog` 作为项目分类源；Collection 成员使用 `collection.members[].catalog`。核心 tags 记录技术、能力、视觉与主题；`facets` 记录形态、素材类型、行业、色彩、平台和建站工具；`keywords` 保留中文与自然语言。README 只投影少量检索摘要并链接 `clone.config.json`，GitHub Topics 只投影精选核心 tags；不要把完整 Meta 铺进 README，也不要再复制一份默认 `DESIGN.md`。
 
 ```bash
 node "$YAH" catalog --project "$YAH_PROJECT" \

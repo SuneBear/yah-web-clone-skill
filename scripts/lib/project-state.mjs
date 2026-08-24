@@ -83,7 +83,7 @@ export function createProjectState({
   return {
     schemaVersion: 3,
     skill: "yah-web-clone",
-    skillVersion: "3.7",
+    skillVersion: "3.8",
     project: path.resolve(project),
     name,
     url,

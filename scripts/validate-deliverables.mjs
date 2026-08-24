@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-import { projectCatalogProblems, projectCatalogTopics } from "./lib/catalog.mjs";
+import { projectCatalogHasContent, projectCatalogProblems } from "./lib/catalog.mjs";
 import { renderCollectionIndex } from "./lib/collection-projection.mjs";
 import { readProjectConfig } from "./lib/project-state.mjs";
 
@@ -127,9 +127,9 @@ function validate(project, config) {
   for (const problem of projectCatalogProblems(config)) {
     add("warning", "catalog-metadata", problem, config.paths?.work ? ".clone/project.json" : "clone.config.json");
   }
-  const topics = projectCatalogTopics(config);
-  if (topics.length && (!readme.includes("<!-- yah-catalog:start -->") || !topics.every((topic) => readme.includes(`\`${topic}\``)))) {
-    add("warning", "catalog-readme", "Run yah catalog --apply to project catalog metadata into README.", "README.md");
+  if (projectCatalogHasContent(config)
+    && (!readme.includes("<!-- yah-catalog:start -->") || !readme.includes("clone.config.json"))) {
+    add("warning", "catalog-readme", "Run yah catalog --apply to project a compact retrieval summary into README.", "README.md");
   }
 
   if (["full", "mirror"].includes(mode)) {

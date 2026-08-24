@@ -35,30 +35,39 @@ export function renderSourcesBlock(config = {}) {
       const meta = [member.treatment, member.status].filter(Boolean).map((value) => `\`${value}\``).join(" · ");
       lines.push(`- **${markdownText(member.title || member.slug)}**${links ? `：${links}` : ""}${meta ? ` · ${meta}` : ""}`);
     }
-  } else {
-    lines.push(`- ${config.url ? markdownLink("原站", config.url) : "原站：待补"}`);
-  }
-  const publishTargets = config.delivery?.publishTargets || config.publishTargets || [];
-  lines.push(publishTargets.length
-    ? `- 计划发布：${publishTargets.join("、")}。`
-    : "- GitHub 与部署未启用；本地验收后再决定是否发布。");
+  } else if (config.url) lines.push(markdownLink("原站", config.url));
   lines.push(SOURCES_END);
   return lines.join("\n");
 }
 
-export function projectReadmeSources(readme, config) {
-  const block = renderSourcesBlock(config);
+function removeManagedSources(readme) {
   const start = readme.indexOf(SOURCES_START);
   const end = readme.indexOf(SOURCES_END);
+  let next = readme;
   if (start >= 0 && end >= start) {
-    return `${readme.slice(0, start)}${block}${readme.slice(end + SOURCES_END.length)}`;
+    next = `${readme.slice(0, start)}${readme.slice(end + SOURCES_END.length)}`;
   }
-  const heading = /(^|\n)## 来源与状态\s*\n/.exec(readme);
-  if (!heading) return `${readme.trimEnd()}\n\n## 来源与状态\n\n${block}\n`;
-  const contentStart = heading.index + heading[0].length;
-  const nextHeadingOffset = readme.slice(contentStart).search(/\n##\s/);
-  const contentEnd = nextHeadingOffset >= 0 ? contentStart + nextHeadingOffset : readme.length;
-  return `${readme.slice(0, contentStart)}\n${block}\n${readme.slice(contentEnd).replace(/^\n+/, "\n")}`;
+  return next
+    .replace(/(^|\n)## (?:来源与状态|参考来源)\s*\n(?=\s*(?:<!-- yah-catalog:start -->|##\s|$))/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
+}
+
+function insertBeforeFirstSection(readme, section) {
+  const catalog = readme.indexOf("<!-- yah-catalog:start -->");
+  const heading = readme.search(/\n##\s/);
+  const insertion = catalog >= 0 ? catalog : heading;
+  if (insertion >= 0) return `${readme.slice(0, insertion).trimEnd()}\n\n${section}\n${readme.slice(insertion)}`;
+  return `${readme.trimEnd()}\n\n${section}\n`;
+}
+
+export function projectReadmeSources(readme, config) {
+  const cleaned = removeManagedSources(readme);
+  if (config.mode === "collection") {
+    return insertBeforeFirstSection(cleaned, `## 参考来源\n\n${renderSourcesBlock(config)}`);
+  }
+  if (!config.url || cleaned.includes(config.url)) return `${cleaned}\n`;
+  return insertBeforeFirstSection(cleaned, renderSourcesBlock(config));
 }
 
 function publicLocalPath(localPath, casesRoot) {
