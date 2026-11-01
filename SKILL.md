@@ -1,7 +1,7 @@
 ---
 name: yah-web-clone
 description: >
-  Yah Web Clone v3 网站复刻工作流，先自动发现并核验目标源码、素材或 Inspiration，再按 full、mirror、effect 或 collection 模式交付可验证镜像、效果实验或参考集合；支持可恢复编排、结构化 Meta、workspace 即时检索、GitHub Topics 与可选发布。Use when 用户明确指定 Yah Web Clone、$yah-web-clone，或要求产出网站 clone/mirror、离线缓存、单效果复刻、Yah Collection、可迁移实验代码及其分类或发布；普通设计推荐或素材搜索若不要求形成 Yah 项目，不应单独触发本 Skill。
+  Yah Web Clone v3 网站复刻工作流，先自动发现并核验目标源码、素材或 Inspiration，再按 full、mirror、effect 或 collection 模式交付可验证镜像、效果实验、React 组件移植或参考集合；支持可恢复编排、结构化 Meta、workspace 即时检索、GitHub Topics 与可选发布。Use when 用户明确指定 Yah Web Clone、$yah-web-clone，或要求产出网站 clone/mirror、离线缓存、单效果复刻、从网页效果制作可复用 React 组件、Yah Collection、可迁移实验代码及其分类或发布；普通设计推荐或素材搜索若不要求形成 Yah 项目，不应单独触发本 Skill。
 ---
 
 # Yah Web Clone v3
@@ -77,6 +77,7 @@ node "$YAH" init nature-sketches --mode collection \
 - `full` 自动要求中文分析、关键截图、来源等级、可运行效果代码、必要时 Dialkit GUI 与 Preset。
 - `mirror` 不生成分析或实验室，只保留运行必需内容与最小证据。
 - `effect` 先建立忠实 baseline，再格式化为独立可运行实验；参数化不得改变默认 Preset 的原版表现。
+- 用户要把页面中的效果做成可复用 React 组件时，在 baseline 验收后执行组件移植；保留原版默认表现，并让组件能在宿主页面中独立挂载、卸载和配置。详见 `references/react-component-port.md`。
 - `collection` 为每个成员选择 `reference-only`、`mirror`、`effect` 或 `full`，分别验收后再做横向比较；不把整个集合笼统声称为 1:1。
 - 所有模式从项目根目录执行 `npm run dev`；不依赖 Storybook 或另一个 Site 工程。
 - 录屏是低优先级：只有截图无法表达关键时序且成本低时，才保留短录屏；默认交付 MP4，也可按用途选择 WebM。
@@ -209,6 +210,7 @@ node "$YAH" finalize --project "$YAH_PROJECT" --apply
 3. 先做最小 RAW REPLAY，不换框架、不优化、不补偿性调参；逐帧或多状态对照通过后，才工程化到 `lab/effects/<effect>/`。最终至少有一个不依赖整站的可读实现。
 4. 默认 Preset 必须忠实于原版；额外 Preset 和参数用于探索 variation，并清楚区分原版值与派生值。
 5. 保证效果可从 `npm run dev` 直接预览，并在 `docs/ANALYSIS.md` 写依赖、参数、证据、差异与迁移方法。
+6. 用户明确要求 React 组件时，按 `references/react-component-port.md` 将通过验收的效果移入 React；`full` 模式下也可对指定效果执行同一分支，不替换 `site/` 镜像。
 
 ### `collection`
 
@@ -219,6 +221,8 @@ node "$YAH" finalize --project "$YAH_PROJECT" --apply
 5. 同时填写集合级与成员级 Catalog；纯 `reference-only` 集合优先链接 provider 预览、素材来源页与原站，不要求自制截图/录屏。只有内部素材或已核实可以呈现且 URL 稳定时才保存 previewUrl；含 mirror、effect 或 full 成员时仍保留支撑验收的最小本地媒体。
 
 所有模式先读取 `references/discovery.md`。执行 `collection` 时读取 `references/collection.md`。读取 `references/effect-extraction.md` 获取 RAW REPLAY、证据分级和 baseline 闸门；读取 `references/deliverables.md` 获取各模式验收清单；分类或同步 GitHub Topics 时读取 `references/catalog.md`。用户明确要设计系统或风格变体时才读取 `references/design-dna.md`。需要录制动效时读取 `references/motion-capture.md`。只有静态部署镜像时读取 `references/static-mirror.md`；只有发布 Cloudflare 时读取 `references/cloudflare-pages.md`。
+
+用户要求从网页提取效果或整页模板并交付可复用 React 组件时，再读取 `references/react-component-port.md`；普通镜像和独立 HTML/JS 效果实验不需要该分支。
 
 使用自动候选发现、workspace 检索、runner/resume 或旧项目迁移时读取 `references/automation.md`。只有用户明确使用 Sune Library，或环境已提供该 Skill 且任务涉及长期检索、捕获或策展时，才读取 `references/sune-library.md`；没有 Sune 的用户无需读取或配置。
 
